@@ -212,6 +212,7 @@
 </div>
 
 <div class="dashboard-container">
+    
     <div class="card-unified">
         <div id="unified-empty-state">
             <span id="gps-status" style="font-size:0.9em; display:block; margin-bottom:10px;">Locating you...</span>
@@ -286,7 +287,7 @@
 
 <script>
 const CSV_URL = "places_database.csv";
-const HEATMAP_JSON_URL = "heatmap_database.json";
+const HEATMAP_JSON_URL = "heatmap_data.json";
 
 let map;
 let places = [];        
@@ -303,7 +304,7 @@ let heatLayer = null;
 let heatDataPoints = [];
 let isHeatmapActive = false;
 
-// Icons
+// ICONS
 const greenIcon = L.divIcon({ className: 'dot-marker dot-green', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
 const redIcon = L.divIcon({ className: 'dot-marker dot-red', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
 const greyIcon = L.divIcon({ className: 'dot-marker dot-grey', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
@@ -314,7 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
     for(let i=0; i<24; i++) {
         let opt = document.createElement("option");
         opt.value = i;
-        opt.innerText = i + ":00";
+        opt.innerText = (i < 10 ? "0" + i : i) + ":00";
         hourSel.appendChild(opt);
     }
 
@@ -326,19 +327,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
     initMap();
     fetchCSV();
-    fetchHeatmapData(); // Load Heatmap Data
+    fetchHeatmapData(); 
     triggerGPS();
     
-    // UI Event Listeners
-    document.getElementById("weather-select").addEventListener("change", updateUI);
-    document.getElementById("day-select").addEventListener("change", () => { updateUI(); updateHeatmapLayer(); });
-    document.getElementById("hour-select").addEventListener("change", () => { updateUI(); updateHeatmapLayer(); });
+    // Listeners
+    document.getElementById("weather-select").addEventListener("change", () => {
+        updateWeatherIcon();
+        if(currentSelectedPlace) updateCrowdDisplay();
+    });
+    
+    const timeUpdate = () => {
+        if(currentSelectedPlace) updateCrowdDisplay();
+        if(isHeatmapActive) updateHeatmapLayer();
+    };
+    
+    document.getElementById("day-select").addEventListener("change", timeUpdate);
+    document.getElementById("hour-select").addEventListener("change", timeUpdate);
 });
-
-function updateUI() {
-    updateWeatherIcon();
-    if(currentSelectedPlace) updateCrowdDisplay();
-}
 
 function updateWeatherIcon() {
     const val = document.getElementById("weather-select").value;
@@ -350,14 +355,12 @@ function updateWeatherIcon() {
 
 function initMap() {
     map = L.map("map").setView([41.3851, 2.1734], 13);
-    // Dark/Light toggle or neutral map often works best for heatmaps
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; CARTO', maxZoom: 20
     }).addTo(map);
 
-    // Order matters for layering
-    selectionLayer.addTo(map); // Selection line under
-    placesLayer.addTo(map);    // Dots on top
+    selectionLayer.addTo(map);
+    placesLayer.addTo(map);
     gpsLayer.addTo(map);
 
     map.on('click', function(e) { handleLocationInput(e.latlng); });
@@ -370,7 +373,7 @@ function fetchHeatmapData() {
     .then(data => {
         heatDataPoints = data;
     })
-    .catch(err => console.log("Heatmap JSON missing (run python script):", err));
+    .catch(err => console.log("Heatmap JSON missing:", err));
 }
 
 function toggleHeatmap() {
@@ -390,42 +393,46 @@ function toggleHeatmap() {
 }
 
 function updateHeatmapLayer() {
-    if(!isHeatmapActive || !heatDataPoints || heatDataPoints.length === 0) return;
+    if(!heatDataPoints || heatDataPoints.length === 0) return;
 
     const day = parseInt(document.getElementById("day-select").value);
     const hour = parseInt(document.getElementById("hour-select").value);
 
-    // Build Points: [Lat, Lon, Intensity]
+    // Filter points for better performance & contrast
     const points = [];
     heatDataPoints.forEach(place => {
         if(place.schedule && place.schedule[day]) {
-            let intensity = place.schedule[day][hour];
-            if(intensity > 0) {
-                // Leaflet heat expects 0.0 - 1.0 roughly (though supports higher)
-                // Divider 90 helps visualize medium crowds too
-                points.push([place.lat, place.lon, intensity / 90]);
+            let rawIntensity = place.schedule[day][hour];
+            
+            if(rawIntensity > 5) { // Ignore very low noise (<5%)
+                // Adjusted scaling for better visual impact
+                // Map 0-100 scale to 0.0-1.0
+                // Capping individual points at 0.6 so only clusters turn red
+                let normalized = Math.min(rawIntensity / 90, 0.7); 
+                points.push([place.lat, place.lon, normalized]);
             }
         }
     });
 
     if(heatLayer) map.removeLayer(heatLayer);
 
-    heatLayer = L.heatLayer(points, {
-        radius: 40,
-        blur: 25,
-        maxZoom: 14,
-        max: 1.0,
-        gradient: {0.4: 'blue', 0.6: 'lime', 0.9: 'red'}
-    }).addTo(map);
-    
-    // Ensure dots stay on top of heat
-    placesLayer.bringToFront();
+    if (points.length > 0) {
+        heatLayer = L.heatLayer(points, {
+            radius: 25,   // Smaller radius = sharper blobs
+            blur: 15,     // Less blur = clearer hotspots
+            maxZoom: 15,
+            max: 1.0,     // Max intensity cap
+            gradient: {0.3: 'blue', 0.6: 'lime', 0.95: 'red'}
+        }).addTo(map);
+        
+        placesLayer.bringToFront();
+    }
 }
 // ---------------------
 
 function triggerGPS() {
     if (!navigator.geolocation) {
-        document.getElementById("gps-status").innerText = "GPS not supported";
+        console.log("GPS not supported");
         return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -444,7 +451,7 @@ function triggerGPS() {
                document.getElementById("user-distance").innerText = distString;
             }
         },
-        (err) => { document.getElementById("gps-status").innerText = "GPS Access Denied"; },
+        (err) => { console.log("GPS Denied"); },
         { enableHighAccuracy: true }
     );
 }
@@ -607,7 +614,6 @@ function updateCrowdDisplay() {
         let schedule = JSON.parse(validJson);
         
         if (schedule.length > 0) {
-            // Get data for selected Day/Hour
             let dayData = schedule[selectedDayIdx];
             if(dayData && dayData.data) {
                 baseCrowd = dayData.data[selectedHour] || 0;
