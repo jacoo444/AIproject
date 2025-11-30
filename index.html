@@ -35,8 +35,23 @@
         display: flex; align-items: center; justify-content: space-between; 
         flex-wrap: wrap; gap: 10px;
     }
+    
+    .header-left { display: flex; align-items: center; gap: 15px; }
     .header-title { font-weight: bold; letter-spacing: 0.5px; font-size: 1.2em; }
-    .header-controls { display: flex; gap: 10px; align-items: center; }
+
+    /* TIME INPUTS */
+    .time-group {
+        display: flex; gap: 5px; align-items: center;
+        background: #f8f9fa; border: 1px solid #ddd; padding: 3px 8px; border-radius: 8px;
+    }
+    .time-select {
+        border: none; background: transparent; 
+        font-family: inherit; font-size: 0.9em; color: #555; font-weight: 600;
+        cursor: pointer; outline: none;
+    }
+    .time-select:hover { color: #0078d7; }
+
+    .header-right { display: flex; gap: 10px; align-items: center; }
 
     /* --- MAP --- */
     #map-wrapper { padding: 0; flex-grow: 1; position: relative; min-height: 0; }
@@ -140,6 +155,7 @@
 
     @media (max-width: 1000px) {
         header { flex-direction: column; align-items: stretch; }
+        .header-left { justify-content: space-between; }
         .header-controls { justify-content: space-between; }
         .search-box { width: 100%; }
         .dashboard-container { flex-direction: column; height: auto;}
@@ -159,8 +175,26 @@
 <body>
 
 <header>
-    <div class="header-title">✨ Barcelona Smart Tourist Guide</div>
-    <div class="header-controls">
+    <div class="header-left">
+        <div class="header-title">✨ Barcelona Smart Tourist Guide</div>
+        
+        <div class="time-group">
+            <select id="day-select" class="time-select">
+                <option value="0">Monday</option>
+                <option value="1">Tuesday</option>
+                <option value="2">Wednesday</option>
+                <option value="3">Thursday</option>
+                <option value="4">Friday</option>
+                <option value="5">Saturday</option>
+                <option value="6">Sunday</option>
+            </select>
+            <span style="color:#ddd">|</span>
+            <select id="hour-select" class="time-select">
+                </select>
+        </div>
+    </div>
+
+    <div class="header-right header-controls">
         <div class="search-box">
             <input type="text" id="searchInput" placeholder="Search attractions...">
             <span class="search-icon">🔍</span>
@@ -271,15 +305,38 @@ const redIcon = L.divIcon({ className: 'dot-marker dot-red', iconSize: [16, 16],
 const greyIcon = L.divIcon({ className: 'dot-marker dot-grey', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Populate Hours
+    const hourSel = document.getElementById("hour-select");
+    for(let i=0; i<24; i++) {
+        let opt = document.createElement("option");
+        opt.value = i;
+        opt.innerText = i + ":00";
+        hourSel.appendChild(opt);
+    }
+
+    // Set Default Time
+    const now = new Date();
+    // JS Day 0=Sun -> Python 0=Mon
+    // JS: Sun=0, Mon=1, Tue=2...
+    // Py: Mon=0, Tue=1... Sun=6
+    let defaultDay = now.getDay() === 0 ? 6 : now.getDay() - 1;
+    document.getElementById("day-select").value = defaultDay;
+    document.getElementById("hour-select").value = now.getHours();
+
     initMap();
     fetchCSV();
     triggerGPS();
     
-    document.getElementById("weather-select").addEventListener("change", function() {
-        updateWeatherIcon();
-        if(currentSelectedPlace) updateCrowdDisplay();
-    });
+    // Listeners
+    document.getElementById("weather-select").addEventListener("change", updateUI);
+    document.getElementById("day-select").addEventListener("change", updateUI);
+    document.getElementById("hour-select").addEventListener("change", updateUI);
 });
+
+function updateUI() {
+    updateWeatherIcon();
+    if(currentSelectedPlace) updateCrowdDisplay();
+}
 
 function updateWeatherIcon() {
     const val = document.getElementById("weather-select").value;
@@ -328,9 +385,6 @@ function triggerGPS() {
     );
 }
 
-// ----------------------------------------------------
-// FETCH CSV USING PAPAPARSE
-// ----------------------------------------------------
 function fetchCSV() {
     Papa.parse(CSV_URL, {
         download: true,
@@ -338,9 +392,7 @@ function fetchCSV() {
         skipEmptyLines: true,
         complete: function(results) {
             places = results.data.map(row => {
-                // Ensure required fields exist
                 if(!row.name || !row.latitude || !row.longitude) return null;
-
                 return {
                     name: row.name,
                     lat: parseFloat(row.latitude),
@@ -350,28 +402,18 @@ function fetchCSV() {
                 };
             }).filter(p => p !== null && !isNaN(p.lat));
 
-            // Create Markers
             places.forEach(p => {
                 let hasData = false;
                 try {
-                    // Check if there is basically any data in the string
-                    if (p.popular_times && p.popular_times.length > 20) {
-                        hasData = true;
-                    }
+                    if (p.popular_times && p.popular_times.length > 20) hasData = true;
                 } catch (e) {}
-
                 const iconToUse = hasData ? greenIcon : greyIcon;
-                
                 const m = L.marker([p.lat, p.lon], { icon: iconToUse });
                 m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
                 placesLayer.addLayer(m);
             });
 
-            // Init Search
             fuse = new Fuse(places, { keys: ['name'], threshold: 0.4 });
-        },
-        error: function(err) {
-            console.error("CSV Parse Error:", err);
         }
     });
 }
@@ -383,8 +425,6 @@ searchInput.addEventListener('keyup', function() {
     const query = this.value;
     resultsList.innerHTML = ''; 
     if (query.length < 2) { resultsList.style.display = 'none'; return; }
-    if (!fuse) return; // Wait for load
-
     const results = fuse.search(query).slice(0, 5).map(r => r.item);
     if (results.length > 0) {
         resultsList.style.display = 'block';
@@ -414,17 +454,13 @@ function modifyEvents(amount) {
 function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
-    
     document.getElementById("unified-active-state").style.display = "none";
     document.getElementById("unified-empty-state").style.display = "flex";
     document.getElementById("lbl-crowd").style.display = "none";
-
-    const crowdEl = document.getElementById("crowd-score");
-    const statusEl = document.getElementById("crowd-status");
-    crowdEl.innerText = "--";
-    crowdEl.className = "placeholder-value";
-    statusEl.innerText = "";
-    statusEl.className = "";
+    
+    document.getElementById("crowd-score").innerText = "--";
+    document.getElementById("crowd-score").className = "placeholder-value";
+    document.getElementById("crowd-status").innerText = "";
 }
 
 function handleLocationInput(latlng) {
@@ -443,12 +479,10 @@ function handleLocationInput(latlng) {
         currentSelectedPlace = nearest;
         currentEventsValue = 0; 
         
-        // Show Active UI
         document.getElementById("unified-empty-state").style.display = "none";
         document.getElementById("unified-active-state").style.display = "flex";
         document.getElementById("lbl-crowd").style.display = "block";
 
-        // Map Line
         if (minDistance > 5) {
             let d = minDistance;
             let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
@@ -465,17 +499,11 @@ function handleLocationInput(latlng) {
         document.getElementById("nearest-name").innerText = nearest.name;
         document.getElementById("events-display").innerText = currentEventsValue;
 
-        // Parse Attributes
         const attrContainer = document.getElementById("attributes-container");
         attrContainer.innerHTML = ""; 
         try {
-            // Replace Python's single quotes with valid JSON double quotes if needed
-            // NOTE: PapaParse reads the raw string. 
-            // If Python saved `['a', 'b']`, we need to fix it.
-            let rawAttrs = nearest.attributes;
-            let validJson = rawAttrs.replace(/'/g, '"');
-            
-            let attrs = JSON.parse(validJson);
+            let cleanJson = nearest.attributes.replace(/'/g, '"');
+            let attrs = JSON.parse(cleanJson);
             
             if(!attrs || attrs.length === 0) {
                 attrContainer.innerHTML = '<span class="tag" style="color:#aaa;">No Attributes</span>';
@@ -488,7 +516,6 @@ function handleLocationInput(latlng) {
                 });
             }
         } catch(e) {
-            // console.log(e);
             attrContainer.innerHTML = '<span class="tag" style="color:#aaa;">--</span>';
         }
 
@@ -510,25 +537,21 @@ function updateCrowdDisplay() {
     if(!currentSelectedPlace) return;
 
     const weatherState = document.getElementById("weather-select").value;
+    const selectedDayIdx = parseInt(document.getElementById("day-select").value);
+    const selectedHour = parseInt(document.getElementById("hour-select").value);
     
     let baseCrowd = 0;
     try {
         let rawPop = currentSelectedPlace.popular_times;
-        // Fix Python single quotes for JSON validity
         let validJson = rawPop.replace(/'/g, '"'); 
         let schedule = JSON.parse(validJson);
         
         if (schedule.length > 0) {
-            const now = new Date();
-            // JS: 0=Sun. PopTimes: 0=Mon.
-            let dayIndex = now.getDay() === 0 ? 6 : now.getDay() - 1; 
-            let hourIndex = now.getHours();
-            
-            let dayData = schedule.find(d => d.name && ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].indexOf(d.name) === dayIndex);
-            if (!dayData && schedule[dayIndex]) dayData = schedule[dayIndex];
-
+            // schedule structure from python: list of 7 days (index 0=Mon, 6=Sun)
+            // our selectedDayIdx matches this directly
+            let dayData = schedule[selectedDayIdx];
             if(dayData && dayData.data) {
-                baseCrowd = dayData.data[hourIndex] || 0;
+                baseCrowd = dayData.data[selectedHour] || 0;
             }
         }
     } catch(e) {
@@ -549,7 +572,6 @@ function updateCrowdDisplay() {
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
     
-    // If absolutely no data
     if (baseCrowd === 0 && currentEventsValue === 0) {
          crowdEl.innerText = "--";
          statusEl.innerText = "No Live Data";
