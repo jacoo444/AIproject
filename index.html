@@ -25,7 +25,6 @@
         background: white; 
         color: #333; 
         padding: 15px 20px; 
-        /* Removed margins and radius for full-width look */
         box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         text-align: left;         
         font-weight: bold; 
@@ -93,8 +92,8 @@
         text-align: center;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
         
-        /* FIXED HEIGHT FOR ALL CARDS */
-        height: 200px; 
+        /* FIXED HEIGHT: 180px makes the 180px wide cards squares */
+        height: 180px; 
         box-sizing: border-box;
     }
 
@@ -102,77 +101,47 @@
     .card-small { flex: 1; max-width: 180px; min-width: 140px; } 
 
     .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:5px;}
-    .value { font-weight: bold; font-size: 1.1em; color: #333; }
-    .highlight { color: #2c3e50; font-size: 1.3em; font-weight: bold; margin: 5px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-    .blue-highlight { color: #0078d7; }
     
+    /* Title Styling - Updated for Wrapping */
+    .highlight { 
+        color: #2c3e50; 
+        font-size: 1.3em; 
+        font-weight: bold; 
+        white-space: normal; /* Allow text wrapping */
+        line-height: 1.2;
+        padding: 0 25px; /* Padding for close btn space */
+    }
+    
+    .blue-highlight { color: #0078d7; }
     .placeholder-text { color: #999; font-weight: bold; font-size: 0.9em; }
 
     .close-btn {
         position: absolute; top: 10px; right: 15px;
-        font-size: 20px; color: #aaa; cursor: pointer; line-height: 1;
+        font-size: 20px; color: #aaa; cursor: pointer; line-height: 1; z-index: 10;
     }
     .close-btn:hover { color: #c0392b; }
 
-    /* --- FORM CONTROLS --- */
-    /* Weather Dropdown */
-    #weather-select {
-        border: 1px solid #ddd; border-radius: 6px; padding: 5px;
-        font-family: inherit; color: #333; font-weight: bold; cursor: pointer;
-        width: 100%; text-align: center; margin-top: 5px; box-sizing: border-box;
-        height: 35px; /* Fixed Height */
-    }
-
-    /* Events Controls */
-    .events-controls {
+    /* --- RESULT CARD SPLIT LAYOUT (50/50) --- */
+    .result-top-half {
+        height: 50%;
+        width: 100%;
         display: flex;
-        align-items: center;
+        flex-direction: column;
         justify-content: center;
-        gap: 5px;
+        align-items: center;
+        position: relative;
+    }
+
+    .result-bottom-half {
+        height: 50%;
         width: 100%;
-        margin-top: 5px;
-    }
-    
-    .evt-btn {
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        background: #f9f9f9;
-        font-weight: bold;
-        color: #333;
-        cursor: pointer;
-        /* Same Height/Look as Dropdown */
-        height: 35px;
-        width: 35px;
-        display: flex; align-items: center; justify-content: center;
-    }
-    .evt-btn:hover { background: #eef; color: #0078d7; border-color: #aaf; }
-    
-    .evt-display {
-        font-size: 1.4em;
-        font-weight: bold;
-        color: #8e44ad;
-        min-width: 40px;
-        text-align: center;
-    }
-
-    /* Colors */
-    .status-green { color: #27ae60; }
-    .status-orange { color: #f39c12; }
-    .status-red { color: #c0392b; }
-    .status-neutral { color: #ccc; }
-    .status-purple { color: #8e44ad; }
-
-    /* --- INFO CARD INTERNAL GRID --- */
-    .info-split-layout {
         display: flex;
-        width: 100%;
-        margin-top: 10px;
         border-top: 1px solid #eee;
-        padding-top: 10px;
+        padding-top: 5px;
+        box-sizing: border-box;
         gap: 10px;
-        height: 100%; /* Fill available space */
     }
-    
+
     /* Left side: Tags */
     .info-left-tags {
         flex: 1;
@@ -184,16 +153,13 @@
         gap: 5px;            
         border-right: 1px solid #eee;
         padding-right: 10px;
-        max-height: 110px; /* Prevent overflow */
-        overflow-y: auto;
+        overflow-y: auto; /* Scroll if too many tags */
     }
     
     .tag {
         background: #f0f2f5; color: #555; 
         font-size: 0.8em; padding: 4px 8px; 
-        border-radius: 4px; 
-        font-weight: 600;
-        white-space: nowrap; 
+        border-radius: 4px; font-weight: 600; white-space: nowrap; 
     }
 
     /* Right side: Distances */
@@ -205,12 +171,44 @@
     }
     .dist-subitem { flex: 1; text-align: center; }
 
+    /* --- CONTROLS Styling --- */
+    #weather-select {
+        border: 1px solid #ddd; border-radius: 6px; padding: 5px;
+        font-family: inherit; color: #333; font-weight: bold; cursor: pointer;
+        width: 100%; text-align: center; margin-top: 5px; box-sizing: border-box;
+        height: 35px;
+    }
+
+    .events-controls {
+        display: flex; align-items: center; justify-content: center;
+        gap: 5px; width: 100%; margin-top: 5px;
+    }
+    
+    .evt-btn {
+        border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9;
+        font-weight: bold; color: #333; cursor: pointer;
+        height: 35px; width: 35px;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .evt-btn:hover { background: #eef; color: #0078d7; border-color: #aaf; }
+    .evt-display {
+        font-size: 1.4em; font-weight: bold; color: #8e44ad;
+        min-width: 40px; text-align: center;
+    }
+
+    /* Colors */
+    .status-green { color: #27ae60; }
+    .status-orange { color: #f39c12; }
+    .status-red { color: #c0392b; }
+    .status-neutral { color: #ccc; }
+    .status-purple { color: #8e44ad; }
+
     @media (max-width: 850px) {
         .dashboard-container { flex-direction: column; height: auto;}
         .card { width: 100%; max-width: none; box-sizing: border-box; margin-bottom: 10px;}
         #map-wrapper { min-height: 40vh; }
-        .info-split-layout { flex-direction: column; gap: 10px; }
-        .info-left-tags { border-right: none; border-bottom: 1px solid #eee; padding-bottom: 10px; width: 100%; padding-right:0; }
+        .result-bottom-half { flex-direction: column; gap: 5px; }
+        .info-left-tags { border-right: none; border-bottom: 1px solid #eee; padding-bottom: 5px; width: 100%; padding-right:0; }
         .info-right-dist { padding-left: 0; }
     }
 </style>
@@ -245,11 +243,14 @@
         </div>
 
         <div id="result-content" style="display:none; width: 100%; height:100%; flex-direction:column;">
-            <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
-            <div class="label">Selected Destination</div>
-            <div class="highlight" id="nearest-name">--</div>
             
-            <div class="info-split-layout">
+            <div class="result-top-half">
+                <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
+                <div class="label">Selected Destination</div>
+                <div class="highlight" id="nearest-name">--</div>
+            </div>
+            
+            <div class="result-bottom-half">
                 <div class="info-left-tags">
                     <span class="tag">Attribute 1</span>
                     <span class="tag">Attribute 2</span>
@@ -323,7 +324,7 @@ let markersCluster = L.markerClusterGroup();
 let userRealLocation = null; 
 let fuse; 
 let currentSelectedPlace = null; 
-let currentEventsValue = 0; // NEW: Global state for currently selected events
+let currentEventsValue = 0; 
 
 // --- Custom Icons ---
 const smallIconSize = [18, 29];
@@ -451,16 +452,15 @@ searchInput.addEventListener('keyup', function() {
     } else { resultsList.style.display = 'none'; }
 });
 
-// NEW: Button Logic for Events
 function modifyEvents(amount) {
     if (!currentSelectedPlace) return;
     
-    currentEventsValue += (amount * 5); // Increment by 5 for better UX
+    currentEventsValue += (amount * 5); 
     if (currentEventsValue < 0) currentEventsValue = 0;
     if (currentEventsValue > 100) currentEventsValue = 100;
     
     document.getElementById("events-display").innerText = currentEventsValue;
-    updateCrowdDisplay(); // Recalculate crowd
+    updateCrowdDisplay(); 
 }
 
 function clearSelection() {
@@ -468,9 +468,7 @@ function clearSelection() {
     currentSelectedPlace = null;
     
     // UI Resets
-    document.getElementById("result-content").style.display = "none"; // Hide content
-    document.getElementById("result-content").style.display = ""; // Remove flex
-    document.getElementById("result-content").style.display = "none";
+    document.getElementById("result-content").style.display = "none"; 
     document.getElementById("instruction").style.display = "block";
     
     document.getElementById("weather-content").style.display = "none";
@@ -502,7 +500,7 @@ function handleLocationInput(latlng) {
 
     if (nearest) {
         currentSelectedPlace = nearest;
-        currentEventsValue = Math.round(nearest.events); // Set local state from CSV
+        currentEventsValue = Math.round(nearest.events); 
 
         if (minDistance > 5) {
             let d = minDistance;
@@ -519,7 +517,7 @@ function handleLocationInput(latlng) {
 
         // Show Panels
         document.getElementById("instruction").style.display = "none";
-        document.getElementById("result-content").style.display = "flex"; // Show as Flex
+        document.getElementById("result-content").style.display = "flex"; 
         document.getElementById("nearest-name").innerText = nearest.name;
         
         document.getElementById("weather-placeholder").style.display = "none";
@@ -543,27 +541,21 @@ function handleLocationInput(latlng) {
     }
 }
 
-// NEW: Crowd Algorithm
 function updateCrowdDisplay() {
     if(!currentSelectedPlace) return;
 
     const place = currentSelectedPlace;
     const weatherState = document.getElementById("weather-select").value;
     
-    // 1. Calculate Base Score (Weighted)
     // 60% importance to Base Crowd, 40% importance to Events
-    // Both inputs are 0-100, result is 0-100
     let baseScore = (place.crowd * 0.6) + (currentEventsValue * 0.4);
 
-    // 2. Weather Multiplier
     let modifier = 1.0;
-    if (weatherState === "Sunny") modifier = 1.15; // +15%
-    if (weatherState === "Rainy") modifier = 0.75; // -25%
+    if (weatherState === "Sunny") modifier = 1.15; 
+    if (weatherState === "Rainy") modifier = 0.75; 
     
-    // 3. Final Calculation
     let estimatedCrowd = Math.round(baseScore * modifier);
     
-    // Clamp to 100
     if (estimatedCrowd > 100) estimatedCrowd = 100;
     if (estimatedCrowd < 0) estimatedCrowd = 0;
     
