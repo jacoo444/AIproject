@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Barcelona Pro Map - Clean</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Barcelona Smart Guide</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -15,100 +16,119 @@
         text-align: center; font-weight: bold; letter-spacing: 1px;
     }
 
-    #map-container { position: relative; height: 65vh; width: 100%; }
+    #map-container { position: relative; height: 60vh; width: 100%; }
     #map { height: 100%; width: 100%; z-index: 1; }
 
-    /* Custom Search Box Styling */
-    .search-wrapper {
+    /* Controls Wrapper */
+    .controls-wrapper {
         position: absolute;
         top: 20px;
         right: 20px;
         z-index: 1000;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    /* Locate Me Button */
+    .gps-btn {
+        background: white; border: none; padding: 10px; 
+        border-radius: 8px; cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        font-size: 18px;
+        height: 42px; width: 42px;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .gps-btn:hover { background: #f0f8ff; color: #0078d7; }
+
+    /* Search Box */
+    .search-box {
         background: white;
-        padding: 10px;
+        padding: 5px;
         border-radius: 8px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         width: 250px;
     }
 
-    .search-wrapper input {
-        width: 100%;
-        padding: 8px;
-        box-sizing: border-box; 
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 14px;
+    .search-box input {
+        width: 100%; border: none; outline: none; padding: 8px; font-size: 14px;
     }
 
-    /* Search Results Dropdown */
+    /* Search Results */
     #search-results {
-        list-style: none;
-        padding: 0;
-        margin: 5px 0 0 0;
-        max-height: 200px;
-        overflow-y: auto;
-        border-top: 1px solid #eee;
-        display: none; 
-        background: white;
+        list-style: none; padding: 0; margin: 0;
+        max-height: 200px; overflow-y: auto;
+        display: none; border-top: 1px solid #eee;
     }
 
     #search-results li {
-        padding: 8px;
-        border-bottom: 1px solid #f9f9f9;
-        cursor: pointer;
-        font-size: 13px;
-        color: #333;
+        padding: 10px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px;
     }
-
     #search-results li:hover { background-color: #f0f8ff; color: #0078d7; }
 
-    /* Bottom Info Panel */
+    /* Info Panel */
     .info-panel {
-        max-width: 600px; margin: 20px auto; padding: 20px;
-        background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        max-width: 600px; margin: 0 auto; padding: 20px;
+        background: white; border-radius: 0 0 8px 8px; 
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
         text-align: center;
     }
 
-    .data-row {
+    .data-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
         margin-top: 15px;
-        border-top: 1px solid #eee; 
+        border-top: 1px solid #eee;
         padding-top: 20px;
     }
+
+    .data-item { text-align: center; }
+    .label { color: #888; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px; }
+    .value { font-weight: bold; font-size: 1.1em; color: #333; margin-top: 4px; display: block;}
     
-    h3 { margin-top: 0; color: #2c3e50; }
-    
-    /* Result Styling */
-    .highlight { color: #e74c3c; font-weight: bold; font-size: 1.5em; display: block; margin-bottom: 5px;}
-    #distance-info { font-size: 1.1em; color: #555; }
+    .highlight { color: #e74c3c; font-size: 1.4em; }
+    .blue-highlight { color: #0078d7; }
 </style>
 </head>
 
 <body>
 
 <header>
-    📍 Barcelona Locator
+    📍 Barcelona Smart Locator
 </header>
 
 <div id="map-container">
     <div id="map"></div>
     
-    <div class="search-wrapper">
-        <input type="text" id="searchInput" placeholder="🔍 Search (e.g., 'Sgrada'...)">
-        <ul id="search-results"></ul>
+    <div class="controls-wrapper">
+        <button class="gps-btn" onclick="triggerGPS()" title="Recenter on Me">📍</button>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search attractions...">
+            <ul id="search-results"></ul>
+        </div>
     </div>
 </div>
 
 <div class="info-panel">
-    <h3>Analysis Result</h3>
     <div id="instruction" style="color:#777;">
-        Click a blue dot, search specifically for an attraction, or click anywhere on the map.
+        Locating you...
     </div>
     
     <div id="result-content" style="display:none;">
-        <div class="data-row">
-            <small style="color:#888; text-transform:uppercase; letter-spacing:1px;">Nearest Attraction</small><br>
-            <span class="highlight" id="nearest-name">--</span>
-            <span id="distance-info">--</span>
+        <h3 class="highlight" id="nearest-name" style="margin:0;">--</h3>
+        
+        <div class="data-grid">
+            <div class="data-item">
+                <span class="label">Distance from Selection</span>
+                <span class="value" id="distance-info">--</span>
+            </div>
+            
+            <div class="data-item" style="border-left:1px solid #eee;">
+                <span class="label">🚶 Distance from You</span>
+                <span class="value blue-highlight" id="user-distance">Unknown</span>
+            </div>
         </div>
     </div>
 </div>
@@ -122,20 +142,22 @@ const CSV_URL = "https://raw.githubusercontent.com/jacoo444/AIproject/main/CL.cs
 let map;
 let places = [];        
 let userLayer = L.layerGroup(); 
+let userRealLocation = null; 
 let fuse; 
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
     fetchCSV();
+    
+    // AUTOMATICALLY ASK FOR LOCATION ON LAUNCH
+    triggerGPS();
 });
 
-// 1. Initialize Map
 function initMap() {
     map = L.map("map").setView([41.3851, 2.1734], 13);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OSM &copy; CARTO',
-        maxZoom: 20
+        attribution: '&copy; CARTO', maxZoom: 20
     }).addTo(map);
 
     userLayer.addTo(map);
@@ -143,6 +165,33 @@ function initMap() {
     map.on('click', function(e) {
         handleLocationInput(e.latlng);
     });
+}
+
+// 1. GPS Logic
+function triggerGPS() {
+    if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser");
+        return;
+    }
+    
+    // Request location
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            // Success: Update variable
+            userRealLocation = L.latLng(pos.coords.latitude, pos.coords.longitude);
+            
+            // Zoom map to user
+            map.setView(userRealLocation, 16);
+            
+            // Treat the user's location as the "Selection" to find nearest attraction
+            handleLocationInput(userRealLocation);
+        },
+        (err) => {
+            // Error/Deny: Just update instruction text
+            document.getElementById("instruction").innerText = "Location denied. Click map or search.";
+        },
+        { enableHighAccuracy: true }
+    );
 }
 
 // 2. Fetch CSV
@@ -161,18 +210,13 @@ function fetchCSV() {
             };
         }).filter(x => x && !isNaN(x.lat));
         
-        // Add Blue Dots
         places.forEach(p => {
             const m = L.marker([p.lat, p.lon]).addTo(map);
             m.bindPopup(`<b>${p.name}</b>`);
             m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
         });
 
-        // Initialize Fuzzy Search
-        fuse = new Fuse(places, {
-            keys: ['name'],   
-            threshold: 0.4,   
-        });
+        fuse = new Fuse(places, { keys: ['name'], threshold: 0.4 });
     });
 }
 
@@ -184,24 +228,18 @@ searchInput.addEventListener('keyup', function() {
     const query = this.value;
     resultsList.innerHTML = ''; 
 
-    if (query.length < 2) {
-        resultsList.style.display = 'none';
-        return;
-    }
+    if (query.length < 2) { resultsList.style.display = 'none'; return; }
 
-    const results = fuse.search(query);
-    const topMatches = results.slice(0, 5).map(r => r.item);
+    const results = fuse.search(query).slice(0, 5).map(r => r.item);
 
-    if (topMatches.length > 0) {
+    if (results.length > 0) {
         resultsList.style.display = 'block';
-        topMatches.forEach(p => {
+        results.forEach(p => {
             const li = document.createElement('li');
             li.textContent = p.name;
             li.onclick = () => {
-                // RESET SEARCH BAR TO BLANK
-                searchInput.value = "";        
+                searchInput.value = ""; 
                 resultsList.style.display = 'none';
-                
                 const latlng = L.latLng(p.lat, p.lon);
                 map.setView(latlng, 16);           
                 handleLocationInput(latlng);       
@@ -217,43 +255,54 @@ searchInput.addEventListener('keyup', function() {
 function handleLocationInput(latlng) {
     userLayer.clearLayers(); 
 
+    // Red Marker for Selection
     const redIcon = L.icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41]
+        iconSize: [25, 41], iconAnchor: [12, 41]
     });
     L.marker(latlng, {icon: redIcon}).addTo(userLayer);
 
+    // Find Nearest
     let nearest = null;
     let minDistance = Infinity;
 
     places.forEach(p => {
         const dist = map.distance(latlng, [p.lat, p.lon]);
-        if (dist < minDistance) {
-            minDistance = dist;
-            nearest = p;
-        }
+        if (dist < minDistance) { minDistance = dist; nearest = p; }
     });
 
     if (nearest) {
+        // Draw line if clicked far away
         if (minDistance > 5) {
             L.polyline([latlng, [nearest.lat, nearest.lon]], {
                 color: 'red', weight: 3, opacity: 0.7, dashArray: '10, 10'
             }).addTo(userLayer);
         }
 
-        // Updated Info Panel (No Coordinates)
+        // --- UPDATE UI ---
         document.getElementById("instruction").style.display = "none";
         document.getElementById("result-content").style.display = "block";
-        
         document.getElementById("nearest-name").innerText = nearest.name;
         
+        // 1. Distance from Click/Search to Attraction
         if (minDistance < 5) {
-            document.getElementById("distance-info").innerText = "You are here.";
+            document.getElementById("distance-info").innerText = "Exact match (0m)";
             document.getElementById("distance-info").style.color = "green";
         } else {
-            document.getElementById("distance-info").innerText = `approx ${Math.round(minDistance)} meters away`;
+            document.getElementById("distance-info").innerText = `${Math.round(minDistance)} m`;
             document.getElementById("distance-info").style.color = "black";
+        }
+
+        // 2. Distance from REAL USER to Attraction
+        if (userRealLocation) {
+            const distFromUser = map.distance(userRealLocation, [nearest.lat, nearest.lon]);
+            let distString = distFromUser > 1000 
+                ? (distFromUser/1000).toFixed(1) + " km" 
+                : Math.round(distFromUser) + " m";
+            
+            document.getElementById("user-distance").innerText = distString;
+        } else {
+            document.getElementById("user-distance").innerText = "Enable GPS";
         }
     }
 }
