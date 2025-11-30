@@ -12,7 +12,7 @@
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
 
-    /* --- HEADER (No Shadow) --- */
+    /* --- HEADER --- */
     header { 
         background: white; 
         color: #333; 
@@ -49,10 +49,9 @@
         display: flex; gap: 10px; align-items: center;
     }
     
-    /* Circle GPS Button */
     .gps-btn {
         background: white; border: none; padding: 0; 
-        border-radius: 50%; /* CIRCLE */
+        border-radius: 50%; 
         cursor: pointer;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
         font-size: 18px; height: 42px; width: 42px;
@@ -63,8 +62,8 @@
     /* Pill-shaped Search Box */
     .search-box {
         background: white; 
-        padding: 5px 15px 5px 5px; 
-        border-radius: 30px; /* PILL SHAPE */
+        padding: 5px 15px 5px 15px; 
+        border-radius: 30px; 
         box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
         width: 320px; 
         display: flex; align-items: center;
@@ -81,11 +80,16 @@
         list-style: none; padding: 0; margin: 0; 
         max-height: 200px; overflow-y: auto; display: none; 
         border-top: 1px solid #eee;
-        position: absolute; top: 45px; left: 15px; right: 15px; 
-        background: white; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        /* UPDATED: Full Width Alignment */
+        position: absolute; top: 50px; left: 0; right: 0; width: 100%;
+        background: white; border-radius: 15px; 
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         z-index: 1001;
+        box-sizing: border-box;
     }
-    #search-results li { padding: 10px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px; }
+    #search-results li { padding: 12px 15px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px; }
+    #search-results li:first-child { border-radius: 15px 15px 0 0; }
+    #search-results li:last-child { border-radius: 0 0 15px 15px; border-bottom: none; }
     #search-results li:hover { background-color: #f0f8ff; color: #0078d7; }
 
     /* --- DASHBOARD --- */
@@ -106,7 +110,6 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         padding: 15px;
         text-align: center;
-        /* ALIGNMENT FIX: Flex-start keeps titles at top */
         display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
         height: 180px; 
         box-sizing: border-box;
@@ -115,7 +118,6 @@
     .card-info { flex: 2; position: relative; min-width: 300px; } 
     .card-small { flex: 1; max-width: 180px; min-width: 140px; } 
 
-    /* Helper wrapper to center content below the fixed title */
     .card-content-wrapper {
         flex-grow: 1;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -135,8 +137,9 @@
     
     .blue-highlight { color: #0078d7; }
     
-    /* Default "--" text */
-    .placeholder-value { color: #ccc; font-weight: bold; font-size: 2.5em; margin: 0; }
+    /* UPDATED: Increased Font Sizes */
+    .placeholder-value { color: #ccc; font-weight: bold; font-size: 3.5em; margin: 0; line-height: 1;}
+    .big-score { font-size: 3.5em; font-weight: bold; margin: 0; line-height: 1; }
 
     .close-btn {
         position: absolute; top: 0; right: 0;
@@ -145,18 +148,18 @@
     }
     .close-btn:hover { color: #c0392b; }
 
-    /* --- RESULT CARD LAYOUT --- */
+    /* --- RESULT CARD SPLIT LAYOUT (60/40) --- */
     .result-top-half {
-        height: 50%; width: 100%;
-        /* Align start so label matches other cards, center content horizontally */
+        height: 60%; /* UPDATED HEIGHT */
+        width: 100%;
         display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
         position: relative;
     }
 
     .result-bottom-half {
-        height: 50%; width: 100%;
+        height: 40%; /* UPDATED HEIGHT */
+        width: 100%;
         display: flex; border-top: 1px solid #eee; padding-top: 5px; box-sizing: border-box; gap: 10px;
-        /* Push it to bottom */
         margin-top: auto; 
     }
 
@@ -198,7 +201,8 @@
     .evt-btn:hover { background: #eef; color: #0078d7; border-color: #aaf; }
     
     .evt-display {
-        font-size: 2.2em; font-weight: bold; color: #8e44ad;
+        font-size: 3.5em; /* Matching the big numbers */
+        font-weight: bold; color: #8e44ad;
         min-width: 40px; text-align: center; line-height: 1; margin-bottom: 5px;
     }
 
@@ -319,7 +323,7 @@
         <span class="label" id="lbl-crowd" style="display:none;">Expected Crowd</span>
         <div class="card-content-wrapper">
             <span id="crowd-score" class="placeholder-value">--</span>
-            <span id="crowd-status" style="font-weight:bold; font-size:0.8em; margin-top:5px; color:#999; min-height:15px;"></span>
+            <span id="crowd-status" style="font-weight:bold; font-size:1.1em; margin-top:5px; color:#999; min-height:20px;"></span>
         </div>
     </div>
 
@@ -488,22 +492,17 @@ function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
     
-    // Hide Labels
     toggleLabels(false);
 
-    // Reset Info Card
     document.getElementById("result-content").style.display = "none"; 
     document.getElementById("instruction").style.display = "flex";
     
-    // Reset Weather
     document.getElementById("weather-content").style.display = "none";
     document.getElementById("weather-placeholder").style.display = "block";
     
-    // Reset Events
     document.getElementById("events-content").style.display = "none";
     document.getElementById("events-placeholder").style.display = "block";
 
-    // Reset Crowd
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
     crowdEl.innerText = "--";
@@ -528,7 +527,6 @@ function handleLocationInput(latlng) {
         currentSelectedPlace = nearest;
         currentEventsValue = 0; 
         
-        // Show Labels
         toggleLabels(true);
 
         if (minDistance > 5) {
@@ -544,16 +542,13 @@ function handleLocationInput(latlng) {
             document.getElementById("distance-info").style.color = "green";
         }
 
-        // Show Info Panel
         document.getElementById("instruction").style.display = "none";
         document.getElementById("result-content").style.display = "flex"; 
         document.getElementById("nearest-name").innerText = nearest.name;
         
-        // Show Weather
         document.getElementById("weather-placeholder").style.display = "none";
         document.getElementById("weather-content").style.display = "block";
         
-        // Show Events
         document.getElementById("events-placeholder").style.display = "none";
         document.getElementById("events-content").style.display = "block";
         document.getElementById("events-display").innerText = currentEventsValue;
@@ -594,7 +589,11 @@ function updateCrowdDisplay() {
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
     crowdEl.innerText = estimatedCrowd;
-    crowdEl.className = ""; statusEl.className = "";
+    crowdEl.className = "big-score"; 
+    
+    // Color logic
+    crowdEl.classList.remove("status-green", "status-orange", "status-red");
+    statusEl.className = "";
     statusEl.style.color = ""; 
 
     if (estimatedCrowd < 40) {
