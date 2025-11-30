@@ -2,236 +2,198 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Barcelona Smart Tourist Guide</title>
+<title>Barcelona Pro Map</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 
 <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f3f3f3; }
-    header { background: #0078D7; color: #fff; padding: 16px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; }
     
-    .switcher { display: flex; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .switcher button {
-        flex: 1; padding: 15px; border: none; cursor: pointer;
-        font-size: 16px; background: #fff; transition: 0.3s;
-        border-bottom: 3px solid transparent;
+    header { 
+        background: #2c3e50; color: #fff; padding: 15px; 
+        text-align: center; font-weight: bold; letter-spacing: 1px;
     }
-    .switcher button.active {
-        color: #0078D7; font-weight: bold; border-bottom: 3px solid #0078D7; background: #f9f9f9;
+
+    #map { 
+        height: 60vh; 
+        width: 100%; 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .info-panel {
+        max-width: 800px; margin: 20px auto; padding: 20px;
+        background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+
+    .data-row {
+        display: flex; justify-content: space-around; margin-top: 15px;
+        border-top: 1px solid #eee; padding-top: 15px;
     }
     
-    #map, #searchArea { display: none; }
-    #map { height: 65vh; width: 100%; z-index: 1; }
+    .data-box {
+        flex: 1; padding: 10px;
+    }
     
-    .content { padding: 20px; max-width: 600px; margin: 0 auto; }
-    
-    .card {
-        background: #fff; padding: 20px; margin-top: 16px;
-        border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        border-left: 5px solid #0078D7;
-    }
-    input[type="text"], select {
-        padding: 10px; width: 70%; border: 1px solid #ddd; border-radius: 6px; margin-top: 5px;
-    }
-    button.action-btn {
-        padding: 10px 20px; background: #0078D7; color: white; border: none; 
-        border-radius: 6px; cursor: pointer; font-size: 14px;
-    }
-    button.action-btn:hover { background: #005a9e; }
+    h3 { margin-top: 0; color: #2c3e50; }
+    .highlight { color: #e74c3c; font-weight: bold; font-size: 1.2em; }
+    .coords { font-family: monospace; color: #555; background: #eee; padding: 4px 8px; border-radius: 4px; }
 </style>
 </head>
 
 <body>
 
 <header>
-    🌆 Barcelona Smart Tourist Guide
+    📍 Barcelona Smart Locator
 </header>
-
-<div class="switcher">
-    <button id="btnMap" class="active">🗺 Interactive Map</button>
-    <button id="btnSearch">🤖 AI Planner</button>
-</div>
 
 <div id="map"></div>
 
-<div id="searchArea" class="content">
-    <h3>Check Crowd Levels</h3>
-    <label>Find a specific attraction (from our database):</label><br>
-    <input id="searchInput" type="text" placeholder="e.g. Park Güell...">
-    <button class="action-btn" onclick="searchPlace()">Analyze</button>
+<div class="info-panel">
+    <h3>Analysis Result</h3>
+    <div id="instruction" style="color:#777;">Click anywhere on the map or use the search button (top right) to find the nearest attraction.</div>
     
-    <br><br>
-    <label>Current Weather:</label><br>
-    <select id="weather">
-        <option>Sunny</option>
-        <option>Cloudy</option>
-        <option>Rainy</option>
-    </select>
-    
-    <div id="results"></div>
+    <div id="result-content" style="display:none;">
+        <div class="data-row">
+            <div class="data-box">
+                <small>Your Selection</small><br>
+                <div class="coords" id="user-coords">--</div>
+            </div>
+            <div class="data-box">
+                <small>Nearest Attraction</small><br>
+                <span class="highlight" id="nearest-name">--</span><br>
+                <span id="distance-info">--</span>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
 const CSV_URL = "https://raw.githubusercontent.com/jacoo444/AIproject/main/CL.csv";
 
-let places = [];
-let map, markers = [];
-const resultsDiv = document.getElementById("results");
+let map;
+let places = [];        // Will hold CSV data
+let mapMarkers = [];    // Holds the blue attraction markers
+let userLayer = L.layerGroup(); // Holds the user's click marker and the connecting line
 
-const mapDiv = document.getElementById("map");
-const searchDiv = document.getElementById("searchArea");
-
-// Toggles
-document.getElementById("btnMap").onclick = () => setMode("map");
-document.getElementById("btnSearch").onclick = () => setMode("search");
-
-function setMode(mode) {
-    document.getElementById("btnMap").classList.toggle("active", mode === "map");
-    document.getElementById("btnSearch").classList.toggle("active", mode === "search");
-    mapDiv.style.display = (mode === "map") ? "block" : "none";
-    searchDiv.style.display = (mode === "search") ? "block" : "none";
-    if (mode === "map" && map) setTimeout(() => map.invalidateSize(), 300);
-}
-
-// Init
-fetch(CSV_URL)
-.then(res => res.text())
-.then(text => {
-    places = parseCSV(text);
+// 1. Initialize Application
+document.addEventListener("DOMContentLoaded", () => {
     initMap();
-    addMarkers();
-    setMode("map");
+    fetchCSV();
 });
 
-function parseCSV(data) {
-    const lines = data.split("\n").slice(1);
-    return lines.map(l => {
-        const c = l.split(",");
-        if (c.length < 6) return null;
-        return {
-            name: c[0],
-            lat: parseFloat(c[1]),
-            lon: parseFloat(c[2]),
-            crowd: parseFloat(c[3]),
-            events: parseFloat(c[4])
-        };
-    }).filter(x => x);
+// 2. Load and Parse CSV
+function fetchCSV() {
+    fetch(CSV_URL)
+    .then(res => res.text())
+    .then(text => {
+        const lines = text.split("\n").slice(1); // Skip header
+        places = lines.map(l => {
+            const c = l.split(",");
+            if (c.length < 3) return null; 
+            return {
+                name: c[0],
+                lat: parseFloat(c[1]), // Index 1 is Latitude
+                lon: parseFloat(c[2])  // Index 2 is Longitude
+            };
+        }).filter(x => x && !isNaN(x.lat)); // Filter out bad lines
+        
+        plotCSVMarkers();
+    });
 }
 
+// 3. Map Setup
 function initMap() {
     map = L.map("map").setView([41.3851, 2.1734], 13);
 
-    // UPGRADE 1: CartoDB Voyager Tiles (Much prettier than OSM)
+    // Clean Map Tiles (CartoDB Voyager)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
+        attribution: '&copy; OSM &copy; CARTO',
         maxZoom: 20
     }).addTo(map);
 
-    // UPGRADE 2: Add Real Search Bar to Map
-    L.Control.geocoder({
-        defaultMarkGeocode: false
-    })
-    .on('markgeocode', function(e) {
-        var bbox = e.geocode.bbox;
-        var poly = L.polygon([
-            bbox.getSouthEast(),
-            bbox.getNorthEast(),
-            bbox.getNorthWest(),
-            bbox.getSouthWest()
-        ]);
-        map.fitBounds(poly.getBounds());
-        
-        // Add a temporary popup for the searched location
-        L.popup()
-            .setLatLng(e.geocode.center)
-            .setContent(e.geocode.name)
-            .openOn(map);
-    })
-    .addTo(map);
+    userLayer.addTo(map);
+
+    // A. Add Search Control (Geocoder)
+    const geocoder = L.Control.geocoder({
+        defaultMarkGeocode: false // We handle the result manually below
+    }).addTo(map);
+
+    // B. Handle Search Result
+    geocoder.on('markgeocode', function(e) {
+        const latlng = e.geocode.center;
+        map.setView(latlng, 15);
+        handleLocationInput(latlng);
+    });
+
+    // C. Handle Map Clicks
+    map.on('click', function(e) {
+        handleLocationInput(e.latlng);
+    });
 }
 
-function addMarkers() {
-    // Custom Icon for tourist spots
-    var touristIcon = L.icon({
-        iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', // Simple map pin
-        iconSize: [30, 30],
-        iconAnchor: [15, 30],
-        popupAnchor: [0, -30]
+// 4. Plot CSV Data (Blue Markers)
+function plotCSVMarkers() {
+    places.forEach(p => {
+        const m = L.marker([p.lat, p.lon]).addTo(map);
+        m.bindPopup(`<b>${p.name}</b>`);
+        mapMarkers.push(m);
     });
+}
+
+// 5. CORE LOGIC: Handle User Input (Click or Search)
+function handleLocationInput(latlng) {
+    userLayer.clearLayers(); // Remove old red markers/lines
+
+    // 1. Show User's Location (Red Marker)
+    const redIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41]
+    });
+    L.marker(latlng, {icon: redIcon}).addTo(userLayer).bindPopup("You are here").openPopup();
+
+    // 2. Find Nearest Place in CSV
+    let nearest = null;
+    let minDistance = Infinity;
 
     places.forEach(p => {
-        let marker = L.marker([p.lat, p.lon], {icon: touristIcon}).addTo(map);
-        
-        // Popup with a "Check Crowd" button inside
-        let popupContent = `
-            <b>${p.name}</b><br>
-            <button onclick="switchToAnalysis('${p.name}')" style="margin-top:5px; cursor:pointer; background:#0078D7; color:white; border:none; border-radius:4px; padding:4px 8px;">Check Crowd Level</button>
-        `;
-        
-        marker.bindPopup(popupContent);
-        markers.push(marker);
+        // Leaflet's built-in distance function (returns meters)
+        const dist = map.distance(latlng, [p.lat, p.lon]);
+        if (dist < minDistance) {
+            minDistance = dist;
+            nearest = p;
+        }
     });
-}
 
-// Helper to switch tab and search automatically from map click
-window.switchToAnalysis = function(name) {
-    setMode("search");
-    document.getElementById("searchInput").value = name;
-    searchPlace();
-}
+    if (nearest) {
+        // 3. Draw a dashed line to the nearest place
+        L.polyline([latlng, [nearest.lat, nearest.lon]], {
+            color: 'red',
+            weight: 3,
+            opacity: 0.7,
+            dashArray: '10, 10'
+        }).addTo(userLayer);
 
-function predictCrowd(place) {
-    const weather = document.getElementById("weather").value;
-    let modifier = weather === "Sunny" ? 1.4 : (weather === "Rainy" ? 0.7 : 1);
-    let estimate = Math.min(100, (place.crowd + place.events) * modifier);
-
-    let output = `
-        <div class="card">
-        <h3>${place.name}</h3>
-        <p><strong>Estimated Crowd:</strong> ${estimate.toFixed(0)} / 100</p>
-    `;
-
-    if (estimate > 70) {
-        output += `<p style="color:#d32f2f;">⚠️ <strong>High congestion expected!</strong></p>`;
-        output += recommend(place);
-    } else {
-        output += `<p style="color:green;">✅ <strong>Good time to visit.</strong></p>`;
+        // 4. Update the HTML Info Panel
+        document.getElementById("instruction").style.display = "none";
+        document.getElementById("result-content").style.display = "block";
+        
+        // Print Coordinates
+        document.getElementById("user-coords").innerText = 
+            `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+        
+        // Print Nearest Name
+        document.getElementById("nearest-name").innerText = nearest.name;
+        
+        // Print Distance
+        document.getElementById("distance-info").innerText = 
+            `approx ${Math.round(minDistance)} meters away`;
     }
-
-    output += "</div>";
-    resultsDiv.innerHTML = output;
-}
-
-function recommend(current) {
-    const sorted = places
-        .filter(p => p.name !== current.name)
-        .sort((a,b) => (a.crowd + a.events) - (b.crowd + b.events))
-        .slice(0, 3);
-
-    let html = `<div style="background:#f0f8ff; padding:10px; border-radius:8px; margin-top:10px;">
-                <strong>🏖 Better Alternatives Nearby:</strong><ul style="margin:5px 0 0 20px; padding:0;">`;
-    sorted.forEach(p => html += `<li>${p.name}</li>`);
-    html += "</ul></div>";
-    return html;
-}
-
-function searchPlace() {
-    let input = document.getElementById("searchInput").value.trim();
-    if (!input) return;
-    
-    const fuse = new Fuse(places, { keys: ["name"], threshold: 0.3 });
-    const matches = fuse.search(input);
-    if (!matches.length) {
-        resultsDiv.innerHTML = `<div class='card'><p>❌ No data found for "${input}" in our database.</p></div>`;
-        return;
-    }
-    predictCrowd(matches[0].item);
 }
 </script>
 
