@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Smart Guide - Clean Map</title>
+<title>Barcelona Smart Guide - Blue Clusters</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -12,6 +12,24 @@
 
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; }
+
+    /* --- CUSTOM CLUSTER COLORS (ALL BLUE) --- */
+    .marker-cluster-small,
+    .marker-cluster-medium,
+    .marker-cluster-large {
+        background-color: rgba(41, 128, 185, 0.4); /* Outer ring transparent blue */
+    }
+
+    .marker-cluster-small div,
+    .marker-cluster-medium div,
+    .marker-cluster-large div {
+        background-color: rgba(41, 128, 185, 0.8); /* Inner circle solid blue */
+        color: white;
+        font-weight: bold;
+        border-radius: 50%; /* Ensure perfectly round */
+    }
+    /* ---------------------------------------- */
+
 
     header { 
         background: #2c3e50; color: #fff; padding: 15px; 
@@ -101,7 +119,7 @@
 <div class="info-panel">
     <div id="instruction" style="color:#777;">
         <span id="gps-status">Locating you...</span><br>
-        <small>Select an attraction to calculate street path.</small>
+        <small>Select an attraction to calculate walking path.</small>
     </div>
     
     <div id="result-content" style="display:none;">
@@ -189,7 +207,7 @@ function triggerGPS() {
         (pos) => {
             userRealLocation = L.latLng(pos.coords.latitude, pos.coords.longitude);
             gpsLayer.clearLayers();
-            // REMOVED .bindPopup("You are here")
+            // Blue Dot (No popup)
             L.circleMarker(userRealLocation, {
                 radius: 8, fillColor: "#3388ff", color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.8
             }).addTo(gpsLayer); 
@@ -221,7 +239,6 @@ function fetchCSV() {
         
         places.forEach(p => {
             const m = L.marker([p.lat, p.lon]);
-            // REMOVED m.bindPopup(...) here
             m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
             markersCluster.addLayer(m);
         });
@@ -263,14 +280,12 @@ function handleLocationInput(latlng) {
         routingControl = null;
     }
 
-    // 2. Add Red Marker (User click/search) - No popup
     const redIcon = L.icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
         iconSize: [25, 41], iconAnchor: [12, 41]
     });
     L.marker(latlng, {icon: redIcon}).addTo(selectionLayer);
 
-    // 3. Find Nearest
     let nearest = null;
     let minDistance = Infinity;
 
@@ -280,7 +295,6 @@ function handleLocationInput(latlng) {
     });
 
     if (nearest) {
-        // --- ROUTING (Selection -> Attraction) ---
         document.getElementById("distance-info").innerText = "Calculating path...";
         
         if (minDistance > 10) {
@@ -289,13 +303,18 @@ function handleLocationInput(latlng) {
                     L.latLng(latlng.lat, latlng.lng),
                     L.latLng(nearest.lat, nearest.lon)
                 ],
+                // Walking Mode
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1',
+                    profile: 'foot'
+                }),
                 routeWhileDragging: false,
                 draggableWaypoints: false,
                 fitSelectedRoutes: false, 
                 addWaypoints: false,
                 show: false, 
                 createMarker: function() { return null; }, 
-                lineOptions: { styles: [{color: '#e74c3c', opacity: 0.8, weight: 5}] }
+                lineOptions: { styles: [{color: '#e74c3c', opacity: 0.8, weight: 5, dashArray: '5, 10'}] }
             }).on('routesfound', function(e) {
                 const d = e.routes[0].summary.totalDistance;
                 let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
@@ -334,7 +353,7 @@ function handleLocationInput(latlng) {
 
         // Crowd Calculation
         let modifier = 1;
-        if (weatherState === "Sunny") modifier = 1.5; 
+        if (weatherState === "Sunny") modifier = 1.2; 
         if (weatherState === "Rainy") modifier = 0.7; 
         
         let estimatedCrowd = Math.round((nearest.crowd + nearest.events) * modifier);
