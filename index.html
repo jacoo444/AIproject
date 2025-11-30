@@ -103,17 +103,31 @@
         z-index: 1001;
     }
 
-    /* --- UNIFIED CARD (Info + Weather + Events) --- */
+    /* --- UNIFIED CARD --- */
     .card-unified {
         background: white;
         border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        display: flex;
-        flex-direction: row; 
-        flex-grow: 1; /* Grow to fill space */
+        /* Flex managed inside state containers now */
+        flex: 4; 
         height: 180px; 
         box-sizing: border-box;
         overflow: hidden; 
+        position: relative;
+    }
+
+    /* STATES FOR UNIFIED CARD */
+    #unified-empty-state {
+        width: 100%; height: 100%;
+        display: flex; flex-direction: column; 
+        justify-content: center; align-items: center;
+        text-align: center; color: #777;
+    }
+
+    #unified-active-state {
+        width: 100%; height: 100%;
+        display: none; /* Hidden by default */
+        flex-direction: row;
     }
 
     /* Inner Sections */
@@ -125,25 +139,17 @@
         position: relative;
     }
     
-    /* INFO: Flexible width */
     .section-info { 
-        flex-grow: 1; /* Takes all remaining space */
-        border-right: 1px solid #eee; 
-        min-width: 250px; 
+        flex-grow: 1; border-right: 1px solid #eee; min-width: 250px; 
     }
-    
-    /* WEATHER & EVENTS: Fixed Square Width */
     .section-weather { 
-        flex: 0 0 180px; /* Fixed 180px width */
-        width: 180px;
-        border-right: 1px solid #eee; 
+        flex: 0 0 180px; width: 180px; border-right: 1px solid #eee; 
     }
     .section-events { 
-        flex: 0 0 180px; /* Fixed 180px width */
-        width: 180px;
+        flex: 0 0 180px; width: 180px;
     }
 
-    /* --- CROWD CARD (Separate, Square) --- */
+    /* --- CROWD CARD --- */
     .card-crowd {
         background: white;
         border-radius: 15px;
@@ -153,10 +159,7 @@
         display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
         height: 180px; 
         box-sizing: border-box;
-        
-        /* Fixed Square Width */
-        flex: 0 0 180px;
-        width: 180px;
+        flex: 0 0 180px; width: 180px;
     }
 
     .card-content-wrapper {
@@ -168,12 +171,8 @@
     .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:5px; width: 100%; text-align: center;}
     
     .highlight { 
-        color: #2c3e50; 
-        font-size: 1.3em; 
-        font-weight: bold; 
-        white-space: normal; 
-        line-height: 1.2;
-        padding: 0 25px; 
+        color: #2c3e50; font-size: 1.3em; font-weight: bold; 
+        white-space: normal; line-height: 1.2; padding: 0 25px; 
     }
     
     .blue-highlight { color: #0078d7; }
@@ -181,37 +180,35 @@
     .placeholder-value { color: #ccc; font-weight: bold; font-size: 3.5em; margin: 0; line-height: 1;}
     .big-score { font-size: 3.5em; font-weight: bold; margin: 0; line-height: 1; }
 
-    /* --- UPDATED CLOSE BUTTON --- */
+    /* --- UPDATED CLEAR BUTTON (Text Pill) --- */
     .close-btn {
         position: absolute; 
-        top: 6px; 
-        left: 6px; 
-        width: 32px; 
-        height: 32px;
+        top: 5px; 
+        left: 5px; 
         background: #f0f2f5; 
-        border-radius: 50%; 
+        border-radius: 12px; /* Pill */
+        padding: 4px 10px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 24px; 
+        font-size: 11px; 
+        font-weight: bold;
+        text-transform: uppercase;
         color: #777; 
         cursor: pointer; 
-        line-height: 1; 
         z-index: 20;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         transition: background 0.2s, color 0.2s;
     }
     .close-btn:hover { background: #e4e6eb; color: #c0392b; }
 
     /* --- RESULT CARD LAYOUT --- */
     .result-top-half {
-        height: 60%;
-        width: 100%;
+        height: 60%; width: 100%;
         display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
         position: relative;
     }
 
     .result-bottom-half {
-        height: 40%;
-        width: 100%;
+        height: 40%; width: 100%;
         display: flex; border-top: 1px solid #eee; padding-top: 5px; box-sizing: border-box; gap: 10px;
         margin-top: auto; 
     }
@@ -254,8 +251,7 @@
     .evt-btn:hover { background: #eef; color: #0078d7; border-color: #aaf; }
     
     .evt-display {
-        font-size: 3.5em; 
-        font-weight: bold; color: #8e44ad;
+        font-size: 3.5em; font-weight: bold; color: #8e44ad;
         min-width: 40px; text-align: center; line-height: 1; margin-bottom: 5px;
     }
 
@@ -269,8 +265,9 @@
     @media (max-width: 1000px) {
         .dashboard-container { flex-direction: column; height: auto;}
         .card-unified { flex-direction: column; height: auto; width: 100%;}
+        #unified-active-state { flex-direction: column; }
         .unified-section { border-right: none; border-bottom: 1px solid #eee; padding: 15px; width: 100%; min-height: 150px; flex: auto;}
-        .section-weather, .section-events { width: 100%; flex: auto; } /* Reset width on mobile */
+        .section-weather, .section-events { width: 100%; flex: auto; }
         .card-crowd { width: 100%; flex: auto; max-width: none; margin-top: 10px; }
         #map-wrapper { min-height: 40vh; }
         .result-bottom-half { flex-direction: column; gap: 5px; }
@@ -305,15 +302,16 @@
     
     <div class="card-unified">
         
-        <div class="unified-section section-info">
-            <div id="instruction" style="color:#777; height:100%; display:flex; flex-direction:column; justify-content:center; width:100%; text-align:center;">
-                <span id="gps-status" style="font-size:0.9em; display:block; margin-bottom:5px;">Locating you...</span>
-                <strong>Select an attraction on the map</strong>
-            </div>
+        <div id="unified-empty-state">
+            <span id="gps-status" style="font-size:0.9em; display:block; margin-bottom:10px;">Locating you...</span>
+            <strong style="font-size:1.2em; color:#333;">Select an attraction on the map</strong>
+        </div>
 
-            <div id="result-content" style="display:none; width: 100%; height:100%; flex-direction:column;">
+        <div id="unified-active-state">
+            
+            <div class="unified-section section-info">
                 <div class="result-top-half">
-                    <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
+                    <div class="close-btn" onclick="clearSelection()" title="Clear Selection">Clear</div>
                     <div class="label">Selected Destination</div>
                     <div style="flex-grow:1; display:flex; align-items:center; justify-content:center;">
                         <div class="highlight" id="nearest-name">--</div>
@@ -337,40 +335,37 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="unified-section section-weather">
-            <span class="label" id="lbl-weather" style="display:none;">Current Weather</span>
-            <div class="card-content-wrapper">
-                <div id="weather-placeholder" class="placeholder-value">--</div>
-                <div id="weather-content" style="display:none; width: 100%;">
-                    <span id="weather-icon" style="font-size: 2.5em; margin: 5px 0;">☁️</span>
-                    <select id="weather-select">
-                        <option value="Cloudy" selected>Cloudy</option>
-                        <option value="Sunny">Sunny</option>
-                        <option value="Rainy">Rainy</option>
-                    </select>
+            <div class="unified-section section-weather">
+                <span class="label" id="lbl-weather">Current Weather</span>
+                <div class="card-content-wrapper">
+                    <div id="weather-content" style="width: 100%;">
+                        <span id="weather-icon" style="font-size: 2.5em; margin: 5px 0;">☁️</span>
+                        <select id="weather-select">
+                            <option value="Cloudy" selected>Cloudy</option>
+                            <option value="Sunny">Sunny</option>
+                            <option value="Rainy">Rainy</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="unified-section section-events">
-            <span class="label" id="lbl-events" style="display:none;">Events Nearby</span>
-            <div class="card-content-wrapper">
-                <div id="events-placeholder" class="placeholder-value">--</div>
-                <div id="events-content" style="display:none; width: 100%; text-align:center;">
-                    <div class="events-wrapper">
-                        <div id="events-display" class="evt-display">0</div>
-                        <div class="events-btn-row">
-                            <button class="evt-btn" onclick="modifyEvents(-1)">-</button>
-                            <button class="evt-btn" onclick="modifyEvents(1)">+</button>
+            <div class="unified-section section-events">
+                <span class="label" id="lbl-events">Events Nearby</span>
+                <div class="card-content-wrapper">
+                    <div id="events-content" style="width: 100%; text-align:center;">
+                        <div class="events-wrapper">
+                            <div id="events-display" class="evt-display">0</div>
+                            <div class="events-btn-row">
+                                <button class="evt-btn" onclick="modifyEvents(-1)">-</button>
+                                <button class="evt-btn" onclick="modifyEvents(1)">+</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-    </div>
+        </div> </div>
     <div class="card card-crowd">
         <span class="label" id="lbl-crowd" style="display:none;">Expected Crowd</span>
         <div class="card-content-wrapper">
@@ -533,28 +528,18 @@ function modifyEvents(amount) {
     updateCrowdDisplay(); 
 }
 
-function toggleLabels(visible) {
-    const val = visible ? 'block' : 'none';
-    document.getElementById('lbl-weather').style.display = val;
-    document.getElementById('lbl-events').style.display = val;
-    document.getElementById('lbl-crowd').style.display = val;
-}
-
 function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
     
-    toggleLabels(false);
-
-    document.getElementById("result-content").style.display = "none"; 
-    document.getElementById("instruction").style.display = "flex";
+    // Switch to Empty State
+    document.getElementById("unified-active-state").style.display = "none";
+    document.getElementById("unified-empty-state").style.display = "flex";
     
-    document.getElementById("weather-content").style.display = "none";
-    document.getElementById("weather-placeholder").style.display = "block";
-    
-    document.getElementById("events-content").style.display = "none";
-    document.getElementById("events-placeholder").style.display = "block";
+    // Hide Crowd Label
+    document.getElementById("lbl-crowd").style.display = "none";
 
+    // Reset Crowd Values
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
     crowdEl.innerText = "--";
@@ -579,8 +564,14 @@ function handleLocationInput(latlng) {
         currentSelectedPlace = nearest;
         currentEventsValue = Math.round(nearest.events); 
         
-        toggleLabels(true);
+        // Switch to Active State
+        document.getElementById("unified-empty-state").style.display = "none";
+        document.getElementById("unified-active-state").style.display = "flex";
+        
+        // Show Crowd Label
+        document.getElementById("lbl-crowd").style.display = "block";
 
+        // Map Visuals
         if (minDistance > 5) {
             let d = minDistance;
             let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
@@ -594,15 +585,8 @@ function handleLocationInput(latlng) {
             document.getElementById("distance-info").style.color = "green";
         }
 
-        document.getElementById("instruction").style.display = "none";
-        document.getElementById("result-content").style.display = "flex"; 
+        // Populate Data
         document.getElementById("nearest-name").innerText = nearest.name;
-        
-        document.getElementById("weather-placeholder").style.display = "none";
-        document.getElementById("weather-content").style.display = "block";
-        
-        document.getElementById("events-placeholder").style.display = "none";
-        document.getElementById("events-content").style.display = "block";
         document.getElementById("events-display").innerText = currentEventsValue;
 
         if (userRealLocation) {
