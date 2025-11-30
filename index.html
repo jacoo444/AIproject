@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Smart Guide - Cluster Fix</title>
+<title>Barcelona Smart Guide - Small Markers</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
@@ -84,18 +84,10 @@
     .status-orange { color: #f39c12; }
     .status-red { color: #c0392b; }
 
-    /* Dropdown Styling */
     #weather-select {
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 5px;
-        font-family: inherit;
-        color: #333;
-        font-weight: bold;
-        cursor: pointer;
-        margin-top: 5px;
-        width: 100px;
-        text-align: center;
+        border: 1px solid #ddd; border-radius: 4px; padding: 5px;
+        font-family: inherit; color: #333; font-weight: bold; cursor: pointer;
+        margin-top: 5px; width: 100px; text-align: center;
     }
 </style>
 </head>
@@ -171,10 +163,20 @@ let map;
 let places = [];        
 let selectionLayer = L.layerGroup(); 
 let gpsLayer = L.layerGroup();
-let markersCluster = L.markerClusterGroup(); 
+let markersCluster;
 let userRealLocation = null; 
 let fuse; 
 let currentSelectedPlace = null; 
+
+// CUSTOM SMALLER ICON
+const smallBlueIcon = L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [12, 20],      // 50% smaller (default is 25, 41)
+    iconAnchor: [6, 20],     // Adjusted anchor
+    popupAnchor: [1, -34],
+    shadowSize: [20, 20]     // Smaller shadow
+});
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
@@ -203,6 +205,11 @@ function initMap() {
         attribution: '&copy; CARTO', maxZoom: 20
     }).addTo(map);
 
+    // LESS AGGRESSIVE CLUSTERING (maxClusterRadius: 30 instead of 80)
+    markersCluster = L.markerClusterGroup({
+        maxClusterRadius: 30 
+    });
+    
     map.addLayer(markersCluster);
     selectionLayer.addTo(map);
     gpsLayer.addTo(map);
@@ -239,13 +246,11 @@ function fetchCSV() {
             const c = l.split(",");
             if (c.length < 5) return null; 
             
-            // Create the marker object here
-            const m = L.marker([parseFloat(c[1]), parseFloat(c[2])]);
+            // Use the SMALL ICON here
+            const m = L.marker([parseFloat(c[1]), parseFloat(c[2])], { icon: smallBlueIcon });
             
-            // Attach event directly to marker logic
             m.on('click', () => handleLocationInput(L.latLng(parseFloat(c[1]), parseFloat(c[2]))));
             
-            // Add marker to cluster
             markersCluster.addLayer(m);
 
             return {
@@ -254,7 +259,7 @@ function fetchCSV() {
                 lon: parseFloat(c[2]),
                 crowd: parseFloat(c[3]) || 0, 
                 events: parseFloat(c[4]) || 0,
-                markerObj: m // STORE THE MARKER OBJECT REFERENCE
+                markerObj: m 
             };
         }).filter(x => x && !isNaN(x.lat));
 
@@ -279,7 +284,6 @@ searchInput.addEventListener('keyup', function() {
                 searchInput.value = ""; 
                 resultsList.style.display = 'none';
                 const latlng = L.latLng(p.lat, p.lon);
-                // No need to setView here, handleLocationInput's zoomToShowLayer will handle it
                 handleLocationInput(latlng);       
             };
             resultsList.appendChild(li);
@@ -288,8 +292,14 @@ searchInput.addEventListener('keyup', function() {
 });
 
 function handleLocationInput(latlng) {
-    // 1. Reset
+    // 1. Immediate Visual Update
     selectionLayer.clearLayers(); 
+
+    const redIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+        iconSize: [25, 41], iconAnchor: [12, 41]
+    });
+    L.marker(latlng, {icon: redIcon}).addTo(selectionLayer);
 
     // 2. Find Nearest
     let nearest = null;
@@ -303,37 +313,7 @@ function handleLocationInput(latlng) {
     if (nearest) {
         currentSelectedPlace = nearest;
         
-        // --- VITAL FIX: REVEAL CLUSTERED MARKER ---
-        // This function zooms or spirals to make the marker visible
-        markersCluster.zoomToShowLayer(nearest.markerObj, function() {
-            
-            // This code runs AFTER the marker is revealed
-            
-            // Draw User Selection Red Marker
-            const redIcon = L.icon({
-                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-                iconSize: [25, 41], iconAnchor: [12, 41]
-            });
-            L.marker(latlng, {icon: redIcon}).addTo(selectionLayer);
-
-            // Draw Line to the now-visible marker
-            if (minDistance > 5) {
-                let d = minDistance;
-                let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
-                
-                L.polyline([latlng, [nearest.lat, nearest.lon]], {
-                    color: '#e74c3c', weight: 3, opacity: 0.7, dashArray: '10, 10'
-                }).addTo(selectionLayer);
-                
-                document.getElementById("distance-info").innerText = dString;
-                document.getElementById("distance-info").style.color = "black";
-            } else {
-                document.getElementById("distance-info").innerText = "0 m";
-                document.getElementById("distance-info").style.color = "green";
-            }
-        });
-
-        // --- UPDATE INFO PANEL ---
+        // 3. Update Text Info
         document.getElementById("instruction").style.display = "none";
         document.getElementById("result-content").style.display = "block";
         document.getElementById("nearest-name").innerText = nearest.name;
@@ -348,8 +328,40 @@ function handleLocationInput(latlng) {
         } else {
             document.getElementById("user-distance").innerText = "--";
         }
-
+        
+        // Crowd
         updateCrowdDisplay(nearest);
+
+        // 4. Handle Visual Line & Clustering
+        const drawLine = () => {
+             if (minDistance > 5) {
+                let d = minDistance;
+                let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
+                
+                L.polyline([latlng, [nearest.lat, nearest.lon]], {
+                    color: '#e74c3c', weight: 3, opacity: 0.7, dashArray: '10, 10'
+                }).addTo(selectionLayer);
+                
+                document.getElementById("distance-info").innerText = dString;
+                document.getElementById("distance-info").style.color = "black";
+            } else {
+                document.getElementById("distance-info").innerText = "0 m";
+                document.getElementById("distance-info").style.color = "green";
+            }
+        };
+
+        // If the marker is hidden in a cluster, reveal it first
+        const visibleParent = markersCluster.getVisibleParent(nearest.markerObj);
+        
+        if (visibleParent && visibleParent !== nearest.markerObj) {
+            // It's inside a cluster -> Zoom to it
+            markersCluster.zoomToShowLayer(nearest.markerObj, function() {
+                drawLine();
+            });
+        } else {
+            // It's already visible -> Just draw line
+            drawLine();
+        }
     }
 }
 
