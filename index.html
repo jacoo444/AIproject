@@ -12,25 +12,27 @@
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
 
-    /* --- MARKER DOT STYLES --- */
+    /* --- MARKER DOT STYLES (RINGS) --- */
     .dot-marker {
         border-radius: 50%;
         border: 2px solid white;
         box-shadow: 0 1px 3px rgba(0,0,0,0.4);
         box-sizing: border-box;
-        opacity: 0.6; 
+        background-clip: padding-box; /* Helps render ring look */
     }
-    /* CHANGED TO GREEN */
     .dot-green {
-        background-color: #27ae60; 
+        background-color: transparent;
+        border: 3px solid #27ae60; /* Green Ring */
+        opacity: 0.6; /* 50-60% Opacity */
     }
     .dot-red {
-        background-color: #c0392b;
-        opacity: 0.9; 
+        background-color: transparent;
+        border: 3px solid #c0392b; /* Red Ring */
+        opacity: 1; /* Selected is fully visible */
         z-index: 1000 !important; 
     }
 
-    /* --- HEADER (Contains Title + Controls) --- */
+    /* --- HEADER --- */
     header { 
         background: white; 
         color: #333; 
@@ -40,8 +42,8 @@
         position: relative;
         display: flex;
         align-items: center;
-        justify-content: space-between; /* Space between Title and Controls */
-        flex-wrap: wrap; /* Allow wrapping on mobile */
+        justify-content: space-between; 
+        flex-wrap: wrap; 
         gap: 10px;
     }
 
@@ -51,7 +53,6 @@
         font-size: 1.2em;
     }
 
-    /* Controls container inside header */
     .header-controls {
         display: flex; 
         gap: 10px; 
@@ -80,14 +81,12 @@
         background: #f0f2f5; border: none; padding: 0; 
         border-radius: 50%; 
         cursor: pointer;
-        /* Removed shadow for flat header look, added border */
         border: 1px solid #ddd;
         font-size: 18px; height: 38px; width: 38px;
         display: flex; align-items: center; justify-content: center;
     }
     .gps-btn:hover { background: #eef; color: #0078d7; }
 
-    /* Pill-shaped Search Box */
     .search-box {
         background: #f0f2f5; 
         padding: 5px 15px 5px 15px; 
@@ -96,7 +95,7 @@
         width: 250px; 
         display: flex; align-items: center;
         position: relative;
-        height: 38px; /* Match button height */
+        height: 38px; 
         box-sizing: border-box;
     }
     .search-box input { 
@@ -113,7 +112,7 @@
         position: absolute; top: 45px; left: 0; right: 0; width: 100%;
         background: white; border-radius: 15px; 
         box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-        z-index: 2005; /* Very high z-index */
+        z-index: 2005; 
         box-sizing: border-box;
     }
     #search-results li { padding: 12px 15px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px; text-align: left;}
@@ -365,9 +364,9 @@
             </div>
 
             <div class="unified-section section-weather">
-                <span class="label" id="lbl-weather">Current Weather</span>
+                <span class="label">Current Weather</span>
                 <div class="card-content-wrapper">
-                    <div id="weather-content" style="width: 100%; text-align: center;">
+                    <div style="width: 100%; text-align: center;">
                         <span id="weather-icon" style="font-size: 2.5em; margin: 5px 0;">☁️</span>
                         <select id="weather-select">
                             <option value="Cloudy" selected>Cloudy</option>
@@ -379,9 +378,9 @@
             </div>
 
             <div class="unified-section section-events">
-                <span class="label" id="lbl-events">Events Nearby</span>
+                <span class="label">Events Nearby</span>
                 <div class="card-content-wrapper">
-                    <div id="events-content" style="width: 100%; text-align:center;">
+                    <div style="width: 100%; text-align:center;">
                         <div class="events-wrapper">
                             <div id="events-display" class="evt-display">0</div>
                             <div class="events-btn-row">
@@ -420,9 +419,9 @@ let fuse;
 let currentSelectedPlace = null; 
 let currentEventsValue = 0; 
 
-// --- UPDATED DOT ICONS (Green for places) ---
+// --- UPDATED DOT ICONS (Green Ring) ---
 const greenIcon = L.divIcon({
-    className: 'dot-marker dot-green', // Changed from blue to green
+    className: 'dot-marker dot-green',
     iconSize: [16, 16],
     iconAnchor: [8, 8],
     popupAnchor: [0, -10]
@@ -510,7 +509,6 @@ function fetchCSV() {
         }).filter(x => x && !isNaN(x.lat));
         
         places.forEach(p => {
-            // Using greenIcon now
             const m = L.marker([p.lat, p.lon], { icon: greenIcon });
             m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
             placesLayer.addLayer(m);
@@ -555,28 +553,18 @@ function modifyEvents(amount) {
     updateCrowdDisplay(); 
 }
 
-function toggleLabels(visible) {
-    const val = visible ? 'block' : 'none';
-    document.getElementById('lbl-weather').style.display = val;
-    document.getElementById('lbl-events').style.display = val;
-    document.getElementById('lbl-crowd').style.display = val;
-}
-
 function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
     
-    toggleLabels(false);
-
+    // Switch to Empty State
     document.getElementById("unified-active-state").style.display = "none";
     document.getElementById("unified-empty-state").style.display = "flex";
     
-    document.getElementById("weather-content").style.display = "none";
-    document.getElementById("weather-placeholder").style.display = "block";
-    
-    document.getElementById("events-content").style.display = "none";
-    document.getElementById("events-placeholder").style.display = "block";
+    // Hide Crowd Label
+    document.getElementById("lbl-crowd").style.display = "none";
 
+    // Reset Crowd Values
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
     crowdEl.innerText = "--";
@@ -601,8 +589,12 @@ function handleLocationInput(latlng) {
         currentSelectedPlace = nearest;
         currentEventsValue = Math.round(nearest.events); 
         
-        toggleLabels(true);
+        // 1. Show UI Containers
+        document.getElementById("unified-empty-state").style.display = "none";
+        document.getElementById("unified-active-state").style.display = "flex";
+        document.getElementById("lbl-crowd").style.display = "block";
 
+        // 2. Map Visuals
         if (minDistance > 5) {
             let d = minDistance;
             let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
@@ -616,15 +608,7 @@ function handleLocationInput(latlng) {
             document.getElementById("distance-info").style.color = "green";
         }
 
-        // 1. Show the UI Containers first
-        document.getElementById("unified-empty-state").style.display = "none";
-        document.getElementById("unified-active-state").style.display = "flex";
-        document.getElementById("weather-placeholder").style.display = "none";
-        document.getElementById("weather-content").style.display = "block";
-        document.getElementById("events-placeholder").style.display = "none";
-        document.getElementById("events-content").style.display = "block";
-
-        // 2. Populate Data
+        // 3. Populate Data
         document.getElementById("nearest-name").innerText = nearest.name;
         document.getElementById("events-display").innerText = currentEventsValue;
 
@@ -638,7 +622,7 @@ function handleLocationInput(latlng) {
             document.getElementById("user-distance").innerText = "--";
         }
 
-        // 3. Update Crowd (Calculates and updates DOM)
+        // 4. Force Update Calculation
         updateCrowdDisplay();
     }
 }
@@ -665,7 +649,6 @@ function updateCrowdDisplay() {
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
     
-    // Explicitly update text
     crowdEl.innerText = estimatedCrowd;
     crowdEl.className = "big-score"; 
     
