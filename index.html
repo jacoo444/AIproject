@@ -24,9 +24,9 @@
         flex-shrink: 0;
     }
 
-    /* --- MAP CONTAINER (Rounded & Floating) --- */
+    /* --- MAP CONTAINER --- */
     #map-wrapper {
-        padding: 15px 15px 0 15px; /* Gap from sides and top */
+        padding: 15px 15px 0 15px;
         flex-grow: 1;
         position: relative;
         min-height: 400px;
@@ -34,14 +34,14 @@
 
     #map-container { 
         height: 100%; width: 100%; 
-        border-radius: 15px; /* ROUND CORNERS */
+        border-radius: 15px; 
         overflow: hidden; 
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         position: relative;
     }
     #map { height: 100%; width: 100%; z-index: 1; }
 
-    /* --- CONTROLS OVER MAP --- */
+    /* --- CONTROLS --- */
     .controls-wrapper {
         position: absolute; top: 20px; right: 20px; z-index: 1000;
         display: flex; gap: 10px; align-items: flex-start;
@@ -64,11 +64,11 @@
     #search-results li { padding: 10px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px; }
     #search-results li:hover { background-color: #f0f8ff; color: #0078d7; }
 
-    /* --- DASHBOARD (Bottom Cards) --- */
+    /* --- DASHBOARD --- */
     .dashboard-container {
         padding: 15px;
         display: flex;
-        gap: 15px; /* Gap between cards */
+        gap: 15px;
         justify-content: center;
         align-items: stretch;
         flex-shrink: 0;
@@ -76,23 +76,23 @@
 
     .card {
         background: white;
-        border-radius: 15px; /* ROUND CORNERS */
+        border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         padding: 15px;
         text-align: center;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
 
-    /* Card Specifics */
     .card-weather { flex: 1; max-width: 200px; }
     .card-info { flex: 2; position: relative; min-width: 250px; }
     .card-crowd { flex: 1; max-width: 200px; }
 
-    /* Typography & UI */
     .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:5px;}
     .value { font-weight: bold; font-size: 1.1em; color: #333; }
     .highlight { color: #2c3e50; font-size: 1.3em; font-weight: bold; margin: 5px 0; }
     .blue-highlight { color: #0078d7; }
+    
+    .placeholder-text { color: #999; font-weight: bold; font-size: 0.9em; }
 
     .close-btn {
         position: absolute; top: 10px; right: 15px;
@@ -100,27 +100,23 @@
     }
     .close-btn:hover { color: #c0392b; }
 
-    /* Weather Select */
     #weather-select {
         border: 1px solid #ddd; border-radius: 6px; padding: 5px;
         font-family: inherit; color: #333; font-weight: bold; cursor: pointer;
         width: 100%; text-align: center; margin-top: 5px;
     }
 
-    /* Crowd Colors */
     .status-green { color: #27ae60; }
     .status-orange { color: #f39c12; }
     .status-red { color: #c0392b; }
     .status-neutral { color: #ccc; }
 
-    /* Distances Grid inside Middle Card */
     .dist-grid {
         display: flex; gap: 20px; justify-content: center; margin-top: 10px; width: 100%;
         border-top: 1px solid #eee; padding-top: 10px;
     }
     .dist-item { flex: 1; }
 
-    /* Mobile Responsive */
     @media (max-width: 700px) {
         .dashboard-container { flex-direction: column; }
         .card { width: 100%; max-width: none; box-sizing: border-box;}
@@ -153,12 +149,17 @@
     
     <div class="card card-weather">
         <span class="label">Weather Conditions</span>
-        <span id="weather-icon" style="font-size: 2.5em; margin: 5px 0;">☁️</span>
-        <select id="weather-select">
-            <option value="Cloudy" selected>Cloudy</option>
-            <option value="Sunny">Sunny</option>
-            <option value="Rainy">Rainy</option>
-        </select>
+        
+        <div id="weather-placeholder" class="placeholder-text">Select Place</div>
+
+        <div id="weather-content" style="display:none; width: 100%;">
+            <span id="weather-icon" style="font-size: 2.5em; margin: 5px 0;">☁️</span>
+            <select id="weather-select">
+                <option value="Cloudy" selected>Cloudy</option>
+                <option value="Sunny">Sunny</option>
+                <option value="Rainy">Rainy</option>
+            </select>
+        </div>
     </div>
 
     <div class="card card-info">
@@ -188,7 +189,7 @@
     <div class="card card-crowd">
         <span class="label">Expected Crowd</span>
         <span id="crowd-score" class="status-neutral" style="font-size:2.5em; font-weight:bold; margin: 5px 0;">--</span>
-        <span id="crowd-status" style="font-weight:bold; font-size:0.9em; color:#999;">Select Place</span>
+        <span id="crowd-status" class="placeholder-text">Select Place</span>
     </div>
 
 </div>
@@ -340,18 +341,22 @@ function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
     
-    // UI Resets
+    // UI Resets - Info Card
     document.getElementById("result-content").style.display = "none";
     document.getElementById("instruction").style.display = "block";
     
-    // Reset Crowd Card
+    // UI Resets - Weather Card
+    document.getElementById("weather-content").style.display = "none";
+    document.getElementById("weather-placeholder").style.display = "block";
+
+    // UI Resets - Crowd Card
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
     crowdEl.innerText = "--";
     crowdEl.className = "status-neutral";
     statusEl.innerText = "Select Place";
-    statusEl.className = "";
-    statusEl.style.color = "#999";
+    statusEl.className = "placeholder-text";
+    statusEl.style.color = "";
 }
 
 function handleLocationInput(latlng) {
@@ -389,6 +394,10 @@ function handleLocationInput(latlng) {
         document.getElementById("instruction").style.display = "none";
         document.getElementById("result-content").style.display = "block";
         document.getElementById("nearest-name").innerText = nearest.name;
+        
+        // --- SHOW WEATHER PANEL ---
+        document.getElementById("weather-placeholder").style.display = "none";
+        document.getElementById("weather-content").style.display = "block";
 
         // GPS Distance
         if (userRealLocation) {
