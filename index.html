@@ -16,15 +16,20 @@
     .dot-marker {
         border-radius: 50%;
         border: 2px solid white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.4);
         box-sizing: border-box;
+        /* Opacity set here */
+        opacity: 0.6; 
     }
     .dot-blue {
-        background-color: #0078d7; /* Theme Blue */
+        background-color: #0078d7; 
     }
     .dot-red {
-        background-color: #c0392b; /* Theme Red */
-        border-width: 3px; /* Slightly thicker border for selection */
+        background-color: #c0392b;
+        /* Selected marker can be slightly more opaque if desired, 
+           but per instructions keeping size identical */
+        opacity: 0.9; 
+        z-index: 1000 !important; /* Ensure selected sits on top */
     }
 
     /* --- HEADER --- */
@@ -123,7 +128,6 @@
         background: white;
         border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        /* Flex managed inside state containers now */
         flex: 4; 
         height: 180px; 
         box-sizing: border-box;
@@ -141,7 +145,7 @@
 
     #unified-active-state {
         width: 100%; height: 100%;
-        display: none; /* Hidden by default */
+        display: none; 
         flex-direction: row;
     }
 
@@ -201,7 +205,7 @@
         top: 5px; 
         left: 10px; 
         font-size: 28px; 
-        font-weight: 900; /* Bold */
+        font-weight: 900; 
         color: #999; 
         cursor: pointer; 
         line-height: 1;
@@ -403,8 +407,8 @@ let fuse;
 let currentSelectedPlace = null; 
 let currentEventsValue = 0; 
 
-// --- UPDATED DOT ICONS ---
-// Using L.divIcon to create circle markers via CSS
+// --- UPDATED DOT ICONS (SAME SIZE) ---
+// Both are 16px, opacity 0.6 for unselected, 0.9 for selected.
 const blueIcon = L.divIcon({
     className: 'dot-marker dot-blue',
     iconSize: [16, 16],
@@ -414,8 +418,8 @@ const blueIcon = L.divIcon({
 
 const redIcon = L.divIcon({
     className: 'dot-marker dot-red',
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
     popupAnchor: [0, -10]
 });
 
