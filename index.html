@@ -83,10 +83,11 @@
         display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
 
-    .card-weather { flex: 1; max-width: 200px; }
-    .card-info { flex: 2; position: relative; min-width: 250px; }
-    .card-crowd { flex: 1; max-width: 200px; }
+    /* Card Flex Ratios */
+    .card-info { flex: 2; position: relative; min-width: 300px; } /* Wider info card */
+    .card-small { flex: 1; max-width: 180px; min-width: 140px; } /* Weather, Events, Crowd */
 
+    /* Typography */
     .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:5px;}
     .value { font-weight: bold; font-size: 1.1em; color: #333; }
     .highlight { color: #2c3e50; font-size: 1.3em; font-weight: bold; margin: 5px 0; }
@@ -100,27 +101,61 @@
     }
     .close-btn:hover { color: #c0392b; }
 
+    /* Weather Select */
     #weather-select {
         border: 1px solid #ddd; border-radius: 6px; padding: 5px;
         font-family: inherit; color: #333; font-weight: bold; cursor: pointer;
         width: 100%; text-align: center; margin-top: 5px;
     }
 
+    /* Colors */
     .status-green { color: #27ae60; }
     .status-orange { color: #f39c12; }
     .status-red { color: #c0392b; }
     .status-neutral { color: #ccc; }
+    .status-purple { color: #8e44ad; }
 
-    .dist-grid {
-        display: flex; gap: 20px; justify-content: center; margin-top: 10px; width: 100%;
-        border-top: 1px solid #eee; padding-top: 10px;
+    /* --- INFO CARD INTERNAL GRID --- */
+    .info-split-layout {
+        display: flex;
+        width: 100%;
+        margin-top: 10px;
+        border-top: 1px solid #eee;
+        padding-top: 10px;
     }
-    .dist-item { flex: 1; }
+    
+    /* Left side: Tags */
+    .info-left-tags {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        border-right: 1px solid #eee;
+        padding-right: 10px;
+    }
+    .tag {
+        background: #f0f2f5; color: #555; 
+        font-size: 0.8em; padding: 4px 8px; 
+        border-radius: 4px; margin-bottom: 4px; 
+        font-weight: 600;
+    }
 
-    @media (max-width: 700px) {
+    /* Right side: Distances */
+    .info-right-dist {
+        flex: 1;
+        display: flex;
+        padding-left: 10px;
+        align-items: center;
+    }
+    .dist-subitem { flex: 1; text-align: center; }
+
+    @media (max-width: 850px) {
         .dashboard-container { flex-direction: column; }
         .card { width: 100%; max-width: none; box-sizing: border-box;}
-        #map-wrapper { min-height: 50vh; }
+        #map-wrapper { min-height: 40vh; }
+        .info-split-layout { flex-direction: column; gap: 10px; }
+        .info-left-tags { border-right: none; border-bottom: 1px solid #eee; padding-bottom: 10px; width: 100%; align-items: center; flex-direction: row; gap: 5px; justify-content: center;}
     }
 </style>
 </head>
@@ -147,8 +182,40 @@
 
 <div class="dashboard-container">
     
-    <div class="card card-weather">
-        <span class="label">Weather Conditions</span>
+    <div class="card card-info">
+        <div id="instruction" style="color:#777;">
+            <span id="gps-status" style="font-size:0.9em; display:block; margin-bottom:5px;">Locating you...</span>
+            <strong>Select an attraction on the map</strong>
+        </div>
+
+        <div id="result-content" style="display:none; width: 100%;">
+            <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
+            <div class="label">Selected Destination</div>
+            <div class="highlight" id="nearest-name">--</div>
+            
+            <div class="info-split-layout">
+                <div class="info-left-tags">
+                    <span class="tag">Attribute 1</span>
+                    <span class="tag">Attribute 2</span>
+                    <span class="tag">Attribute 3</span>
+                </div>
+
+                <div class="info-right-dist">
+                    <div class="dist-subitem">
+                        <small style="color:#aaa;">Straight Line</small><br>
+                        <span id="distance-info" style="font-weight:bold;">--</span>
+                    </div>
+                    <div class="dist-subitem">
+                        <small style="color:#aaa;">From You</small><br>
+                        <span id="user-distance" class="blue-highlight" style="font-weight:bold;">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-small">
+        <span class="label">Weather</span>
         
         <div id="weather-placeholder" class="placeholder-text">Select Place</div>
 
@@ -162,31 +229,13 @@
         </div>
     </div>
 
-    <div class="card card-info">
-        <div id="instruction" style="color:#777;">
-            <span id="gps-status" style="font-size:0.9em; display:block; margin-bottom:5px;">Locating you...</span>
-            <strong>Select an attraction on the map</strong>
-        </div>
-
-        <div id="result-content" style="display:none; width: 100%;">
-            <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
-            <div class="label">Selected Destination</div>
-            <div class="highlight" id="nearest-name">--</div>
-            
-            <div class="dist-grid">
-                <div class="dist-item">
-                    <small style="color:#aaa;">Straight Line</small><br>
-                    <span id="distance-info" style="font-weight:bold;">--</span>
-                </div>
-                <div class="dist-item" style="border-left:1px solid #eee;">
-                    <small style="color:#aaa;">From You</small><br>
-                    <span id="user-distance" class="blue-highlight" style="font-weight:bold;">--</span>
-                </div>
-            </div>
-        </div>
+    <div class="card card-small">
+        <span class="label">Events Nearby</span>
+        <span id="events-score" class="status-purple" style="font-size:2.5em; font-weight:bold; margin: 5px 0; display:none;">--</span>
+        <span id="events-placeholder" class="placeholder-text">Select Place</span>
     </div>
 
-    <div class="card card-crowd">
+    <div class="card card-small">
         <span class="label">Expected Crowd</span>
         <span id="crowd-score" class="status-neutral" style="font-size:2.5em; font-weight:bold; margin: 5px 0;">--</span>
         <span id="crowd-status" class="placeholder-text">Select Place</span>
@@ -232,7 +281,6 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchCSV();
     triggerGPS();
     
-    // Listen for weather changes
     document.getElementById("weather-select").addEventListener("change", function() {
         updateWeatherIcon();
         if(currentSelectedPlace) {
@@ -349,6 +397,10 @@ function clearSelection() {
     document.getElementById("weather-content").style.display = "none";
     document.getElementById("weather-placeholder").style.display = "block";
 
+    // UI Resets - Events Card
+    document.getElementById("events-score").style.display = "none";
+    document.getElementById("events-placeholder").style.display = "block";
+
     // UI Resets - Crowd Card
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
@@ -398,6 +450,12 @@ function handleLocationInput(latlng) {
         // --- SHOW WEATHER PANEL ---
         document.getElementById("weather-placeholder").style.display = "none";
         document.getElementById("weather-content").style.display = "block";
+
+        // --- SHOW EVENTS PANEL ---
+        document.getElementById("events-placeholder").style.display = "none";
+        const eventEl = document.getElementById("events-score");
+        eventEl.style.display = "block";
+        eventEl.innerText = Math.round(nearest.events);
 
         // GPS Distance
         if (userRealLocation) {
