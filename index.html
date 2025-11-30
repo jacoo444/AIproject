@@ -12,6 +12,21 @@
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
 
+    /* --- MARKER DOT STYLES --- */
+    .dot-marker {
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        box-sizing: border-box;
+    }
+    .dot-blue {
+        background-color: #0078d7; /* Theme Blue */
+    }
+    .dot-red {
+        background-color: #c0392b; /* Theme Red */
+        border-width: 3px; /* Slightly thicker border for selection */
+    }
+
     /* --- HEADER --- */
     header { 
         background: white; 
@@ -388,21 +403,20 @@ let fuse;
 let currentSelectedPlace = null; 
 let currentEventsValue = 0; 
 
-// --- Custom Icons ---
-const smallIconSize = [18, 29];
-const smallIconAnchor = [9, 29];
-const smallShadowSize = [29, 29];
-
-const blueIcon = L.icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconSize: smallIconSize, iconAnchor: smallIconAnchor, popupAnchor: [1, -34],
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', shadowSize: smallShadowSize
+// --- UPDATED DOT ICONS ---
+// Using L.divIcon to create circle markers via CSS
+const blueIcon = L.divIcon({
+    className: 'dot-marker dot-blue',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -10]
 });
 
-const redIcon = L.icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-    iconSize: smallIconSize, iconAnchor: smallIconAnchor, popupAnchor: [1, -34],
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', shadowSize: smallShadowSize
+const redIcon = L.divIcon({
+    className: 'dot-marker dot-red',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -10]
 });
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -524,18 +538,28 @@ function modifyEvents(amount) {
     updateCrowdDisplay(); 
 }
 
+function toggleLabels(visible) {
+    const val = visible ? 'block' : 'none';
+    document.getElementById('lbl-weather').style.display = val;
+    document.getElementById('lbl-events').style.display = val;
+    document.getElementById('lbl-crowd').style.display = val;
+}
+
 function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
     
-    // Switch to Empty State
+    toggleLabels(false);
+
     document.getElementById("unified-active-state").style.display = "none";
     document.getElementById("unified-empty-state").style.display = "flex";
     
-    // Hide Crowd Label
-    document.getElementById("lbl-crowd").style.display = "none";
+    document.getElementById("weather-content").style.display = "none";
+    document.getElementById("weather-placeholder").style.display = "block";
+    
+    document.getElementById("events-content").style.display = "none";
+    document.getElementById("events-placeholder").style.display = "block";
 
-    // Reset Crowd Values
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
     crowdEl.innerText = "--";
@@ -560,14 +584,8 @@ function handleLocationInput(latlng) {
         currentSelectedPlace = nearest;
         currentEventsValue = Math.round(nearest.events); 
         
-        // Switch to Active State
-        document.getElementById("unified-empty-state").style.display = "none";
-        document.getElementById("unified-active-state").style.display = "flex";
-        
-        // Show Crowd Label
-        document.getElementById("lbl-crowd").style.display = "block";
+        toggleLabels(true);
 
-        // Map Visuals
         if (minDistance > 5) {
             let d = minDistance;
             let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
@@ -581,8 +599,15 @@ function handleLocationInput(latlng) {
             document.getElementById("distance-info").style.color = "green";
         }
 
-        // Populate Data
+        document.getElementById("unified-empty-state").style.display = "none";
+        document.getElementById("unified-active-state").style.display = "flex";
         document.getElementById("nearest-name").innerText = nearest.name;
+        
+        document.getElementById("weather-placeholder").style.display = "none";
+        document.getElementById("weather-content").style.display = "block";
+        
+        document.getElementById("events-placeholder").style.display = "none";
+        document.getElementById("events-content").style.display = "block";
         document.getElementById("events-display").innerText = currentEventsValue;
 
         if (userRealLocation) {
