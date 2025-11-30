@@ -253,7 +253,7 @@
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
-// NOTE: Ensure your local file is named 'places_database.csv'
+// Ensure this filename matches your generated CSV
 const CSV_URL = "places_database.csv";
 
 let map;
@@ -331,25 +331,24 @@ function fetchCSV() {
     fetch(CSV_URL)
     .then(res => res.text())
     .then(text => {
-        const lines = text.split("\n").slice(1); // Skip header
+        const lines = text.split("\n").slice(1);
         places = lines.map(l => {
-            // Very simple CSV parser (Warning: commas inside JSON might break this simple split if not quoted properly)
-            // Ideally use a CSV library, but for this specific structure (if properly quoted) regex is safer
-            // or we assume no commas in names for simplicity.
-            
-            // NOTE: A more robust split for CSVs with JSON strings:
             const c = l.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
-            // Remove quotes from captured strings
             const cleanC = c.map(val => val.replace(/^"|"$/g, ''));
 
             if (cleanC.length < 3) return null; 
             
-            // Expected columns: name, longitude, latitude, google_id, attributes, popular_times
-            // Indices: 0=name, 1=lon, 2=lat, 3=gid, 4=attr, 5=pop_times
+            // CORRECTED INDICES MAPPING:
+            // 0: name
+            // 1: latitude
+            // 2: longitude
+            // 3: google_id
+            // 4: attributes
+            // 5: popular_times
             
             let name = cleanC[0] || "Unknown";
-            let lon = parseFloat(cleanC[1]);
-            let lat = parseFloat(cleanC[2]);
+            let lat = parseFloat(cleanC[1]); // WAS Index 2, Fixed to 1
+            let lon = parseFloat(cleanC[2]); // WAS Index 1, Fixed to 2
             let attr = cleanC[4] || "[]";
             let pop = cleanC[5] || "[]";
 
@@ -357,8 +356,8 @@ function fetchCSV() {
                 name: name,
                 lat: lat,
                 lon: lon,
-                attributes: attr,     // JSON String
-                popular_times: pop    // JSON String
+                attributes: attr,
+                popular_times: pop
             };
         }).filter(x => x && !isNaN(x.lat));
         
@@ -435,14 +434,13 @@ function handleLocationInput(latlng) {
 
     if (nearest) {
         currentSelectedPlace = nearest;
-        currentEventsValue = 0; // Reset manual events
+        currentEventsValue = 0; 
         
-        // 1. Show Active UI
+        // Show Active UI
         document.getElementById("unified-empty-state").style.display = "none";
         document.getElementById("unified-active-state").style.display = "flex";
         document.getElementById("lbl-crowd").style.display = "block";
 
-        // 2. Map Line
         if (minDistance > 5) {
             let d = minDistance;
             let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
@@ -456,32 +454,29 @@ function handleLocationInput(latlng) {
             document.getElementById("distance-info").style.color = "green";
         }
 
-        // 3. Populate Basic Info
         document.getElementById("nearest-name").innerText = nearest.name;
         document.getElementById("events-display").innerText = currentEventsValue;
 
-        // 4. Populate Attributes (Types)
+        // Parse Attributes
         const attrContainer = document.getElementById("attributes-container");
-        attrContainer.innerHTML = ""; // clear old
+        attrContainer.innerHTML = ""; 
         try {
-            // Replace single quotes if present (python json dump sometimes does this) to double quotes for standard JSON
             let cleanJson = nearest.attributes.replace(/'/g, '"');
             let attrs = JSON.parse(cleanJson);
             
             if(attrs.length === 0) {
                 attrContainer.innerHTML = '<span class="tag" style="color:#aaa;">No Attributes</span>';
             } else {
-                attrs.forEach(a => {
+                // Show only first 4 attributes to fit layout
+                attrs.slice(0, 4).forEach(a => {
                     let span = document.createElement("span");
                     span.className = "tag";
-                    // Format: "point_of_interest" -> "Point Of Interest"
                     span.innerText = a.replace(/_/g, ' '); 
                     attrContainer.appendChild(span);
                 });
             }
         } catch(e) {
-            console.log("JSON Parse Error on Attributes:", e);
-            attrContainer.innerHTML = '<span class="tag" style="color:#aaa;">Attributes Error</span>';
+            attrContainer.innerHTML = '<span class="tag" style="color:#aaa;">--</span>';
         }
 
         if (userRealLocation) {
@@ -494,7 +489,6 @@ function handleLocationInput(latlng) {
             document.getElementById("user-distance").innerText = "--";
         }
 
-        // 5. Calculate Crowd
         updateCrowdDisplay();
     }
 }
@@ -504,32 +498,31 @@ function updateCrowdDisplay() {
 
     const weatherState = document.getElementById("weather-select").value;
     
-    // 1. Get Real-Time Crowd Base from Popular Times
+    // Calculate Base Crowd from History
     let baseCrowd = 0;
     try {
-        // Handle potential python string format differences
         let cleanPop = currentSelectedPlace.popular_times.replace(/'/g, '"');
         let schedule = JSON.parse(cleanPop);
         
         if (schedule.length > 0) {
             const now = new Date();
-            // Populartimes: Monday=0. JS: Sunday=0. Map JS to Python index:
             let dayIndex = now.getDay() === 0 ? 6 : now.getDay() - 1;
             let hourIndex = now.getHours();
             
-            // Get data array for today
-            let dayData = schedule[dayIndex]; 
-            // The library structure is usually [{'name': 'Monday', 'data': [...]}, ...]
+            // Find correct day object
+            let dayData = schedule.find(d => d.name && ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].indexOf(d.name) === dayIndex);
+            
+            // Fallback: Use index if names match order
+            if (!dayData && schedule[dayIndex]) dayData = schedule[dayIndex];
+
             if(dayData && dayData.data) {
                 baseCrowd = dayData.data[hourIndex] || 0;
             }
         }
     } catch(e) {
-        console.log("Crowd Data Error:", e);
-        baseCrowd = 0; // Fallback
+        baseCrowd = 0; 
     }
 
-    // 2. Modifiers
     let weatherMod = 1.0;
     if (weatherState === "Sunny") weatherMod = 1.2; 
     if (weatherState === "Rainy") weatherMod = 0.8; 
@@ -544,7 +537,7 @@ function updateCrowdDisplay() {
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
     
-    // If no base data (0), show "No Data" or "--"
+    // Handle Missing Data
     if (baseCrowd === 0 && currentEventsValue === 0) {
          crowdEl.innerText = "--";
          statusEl.innerText = "No Live Data";
