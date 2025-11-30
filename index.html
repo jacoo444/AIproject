@@ -103,20 +103,20 @@
         z-index: 1001;
     }
 
-    /* --- NEW UNIFIED CARD (Holds Info, Weather, Events) --- */
+    /* --- UNIFIED CARD --- */
     .card-unified {
         background: white;
         border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         display: flex;
-        flex-direction: row; /* Side by side sections */
-        flex: 4; /* Takes up 4 parts of space */
+        flex-direction: row; 
+        flex: 4; 
         height: 180px; 
         box-sizing: border-box;
-        overflow: hidden; /* Contains children border radius */
+        overflow: hidden; 
     }
 
-    /* Inner Sections of Unified Card */
+    /* Inner Sections */
     .unified-section {
         padding: 15px;
         display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
@@ -129,7 +129,7 @@
     .section-weather { flex: 1; border-right: 1px solid #eee; min-width: 150px; }
     .section-events { flex: 1; min-width: 150px; }
 
-    /* --- SEPARATE CROWD CARD --- */
+    /* --- CROWD CARD --- */
     .card-crowd {
         background: white;
         border-radius: 15px;
@@ -139,7 +139,7 @@
         display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
         height: 180px; 
         box-sizing: border-box;
-        flex: 1; /* Takes 1 part of space */
+        flex: 1; 
         min-width: 180px;
     }
 
@@ -168,8 +168,9 @@
     /* --- UPDATED CLOSE BUTTON --- */
     .close-btn {
         position: absolute; 
-        top: 10px; 
-        left: 10px; 
+        /* Adjusted to fit snugly in corner radius */
+        top: 6px; 
+        left: 6px; 
         width: 32px; 
         height: 32px;
         background: #f0f2f5; 
@@ -185,7 +186,7 @@
     }
     .close-btn:hover { background: #e4e6eb; color: #c0392b; }
 
-    /* --- RESULT LAYOUT --- */
+    /* --- RESULT CARD LAYOUT --- */
     .result-top-half {
         height: 60%;
         width: 100%;
