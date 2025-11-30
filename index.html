@@ -4,28 +4,41 @@
 <meta charset="UTF-8">
 <title>Barcelona Smart Tourist Guide</title>
 
-<!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 
-<!-- Minimal styling -->
 <style>
-    body { font-family: Arial, sans-serif; margin: 0; background: #f3f3f3; }
-    header { background: #1976d2; color: #fff; padding: 16px; text-align: center; }
-    .switcher { display: flex; background: #eee; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f3f3f3; }
+    header { background: #0078D7; color: #fff; padding: 16px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    
+    .switcher { display: flex; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .switcher button {
-        flex: 1; padding: 14px; border: none; cursor: pointer;
-        font-size: 16px; background: #ddd;
+        flex: 1; padding: 15px; border: none; cursor: pointer;
+        font-size: 16px; background: #fff; transition: 0.3s;
+        border-bottom: 3px solid transparent;
     }
     .switcher button.active {
-        background: #1976d2; color: #fff; font-weight: bold;
+        color: #0078D7; font-weight: bold; border-bottom: 3px solid #0078D7; background: #f9f9f9;
     }
+    
     #map, #searchArea { display: none; }
-    #map { height: 60vh; }
-    .content { padding: 16px; }
+    #map { height: 65vh; width: 100%; z-index: 1; }
+    
+    .content { padding: 20px; max-width: 600px; margin: 0 auto; }
+    
     .card {
-        background: #fff; padding: 15px; margin-top: 16px;
-        border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        background: #fff; padding: 20px; margin-top: 16px;
+        border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-left: 5px solid #0078D7;
     }
+    input[type="text"], select {
+        padding: 10px; width: 70%; border: 1px solid #ddd; border-radius: 6px; margin-top: 5px;
+    }
+    button.action-btn {
+        padding: 10px 20px; background: #0078D7; color: white; border: none; 
+        border-radius: 6px; cursor: pointer; font-size: 14px;
+    }
+    button.action-btn:hover { background: #005a9e; }
 </style>
 </head>
 
@@ -36,45 +49,44 @@
 </header>
 
 <div class="switcher">
-    <button id="btnMap" class="active">🗺 Map</button>
-    <button id="btnSearch">⌨️ Search</button>
+    <button id="btnMap" class="active">🗺 Interactive Map</button>
+    <button id="btnSearch">🤖 AI Planner</button>
 </div>
 
 <div id="map"></div>
 
 <div id="searchArea" class="content">
-    <label>Type a destination:</label><br>
-    <input id="searchInput" type="text" placeholder="Sagrada Família..." style="width:70%;">
-    <button onclick="searchPlace()">Search</button>
-</div>
-
-<div class="content">
-    <label>Weather:</label>
+    <h3>Check Crowd Levels</h3>
+    <label>Find a specific attraction (from our database):</label><br>
+    <input id="searchInput" type="text" placeholder="e.g. Park Güell...">
+    <button class="action-btn" onclick="searchPlace()">Analyze</button>
+    
+    <br><br>
+    <label>Current Weather:</label><br>
     <select id="weather">
         <option>Sunny</option>
         <option>Cloudy</option>
         <option>Rainy</option>
     </select>
+    
+    <div id="results"></div>
 </div>
 
-<div id="results" class="content"></div>
-
-<!-- Leaflet -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<!-- Fuse.js (fuzzy search) -->
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
-// TODO: Change this to your GitHub Pages CSV raw URL
 const CSV_URL = "https://raw.githubusercontent.com/jacoo444/AIproject/main/CL.csv";
 
 let places = [];
 let map, markers = [];
 const resultsDiv = document.getElementById("results");
 
-// UI toggle
 const mapDiv = document.getElementById("map");
 const searchDiv = document.getElementById("searchArea");
+
+// Toggles
 document.getElementById("btnMap").onclick = () => setMode("map");
 document.getElementById("btnSearch").onclick = () => setMode("search");
 
@@ -83,21 +95,19 @@ function setMode(mode) {
     document.getElementById("btnSearch").classList.toggle("active", mode === "search");
     mapDiv.style.display = (mode === "map") ? "block" : "none";
     searchDiv.style.display = (mode === "search") ? "block" : "none";
-    if (mode === "map") setTimeout(() => map.invalidateSize(), 300);
+    if (mode === "map" && map) setTimeout(() => map.invalidateSize(), 300);
 }
 
-// Load CSV and initialize everything
+// Init
 fetch(CSV_URL)
 .then(res => res.text())
 .then(text => {
     places = parseCSV(text);
-
     initMap();
     addMarkers();
     setMode("map");
 });
 
-// CSV parsing
 function parseCSV(data) {
     const lines = data.split("\n").slice(1);
     return lines.map(l => {
@@ -113,26 +123,72 @@ function parseCSV(data) {
     }).filter(x => x);
 }
 
-// Map + Markers
 function initMap() {
     map = L.map("map").setView([41.3851, 2.1734], 13);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+
+    // UPGRADE 1: CartoDB Voyager Tiles (Much prettier than OSM)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+    }).addTo(map);
+
+    // UPGRADE 2: Add Real Search Bar to Map
+    L.Control.geocoder({
+        defaultMarkGeocode: false
+    })
+    .on('markgeocode', function(e) {
+        var bbox = e.geocode.bbox;
+        var poly = L.polygon([
+            bbox.getSouthEast(),
+            bbox.getNorthEast(),
+            bbox.getNorthWest(),
+            bbox.getSouthWest()
+        ]);
+        map.fitBounds(poly.getBounds());
+        
+        // Add a temporary popup for the searched location
+        L.popup()
+            .setLatLng(e.geocode.center)
+            .setContent(e.geocode.name)
+            .openOn(map);
+    })
+    .addTo(map);
 }
 
 function addMarkers() {
+    // Custom Icon for tourist spots
+    var touristIcon = L.icon({
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', // Simple map pin
+        iconSize: [30, 30],
+        iconAnchor: [15, 30],
+        popupAnchor: [0, -30]
+    });
+
     places.forEach(p => {
-        let marker = L.marker([p.lat, p.lon]).addTo(map);
-        marker.bindPopup(p.name);
-        marker.on("click", () => predictCrowd(p));
+        let marker = L.marker([p.lat, p.lon], {icon: touristIcon}).addTo(map);
+        
+        // Popup with a "Check Crowd" button inside
+        let popupContent = `
+            <b>${p.name}</b><br>
+            <button onclick="switchToAnalysis('${p.name}')" style="margin-top:5px; cursor:pointer; background:#0078D7; color:white; border:none; border-radius:4px; padding:4px 8px;">Check Crowd Level</button>
+        `;
+        
+        marker.bindPopup(popupContent);
         markers.push(marker);
     });
 }
 
-// Prediction
+// Helper to switch tab and search automatically from map click
+window.switchToAnalysis = function(name) {
+    setMode("search");
+    document.getElementById("searchInput").value = name;
+    searchPlace();
+}
+
 function predictCrowd(place) {
     const weather = document.getElementById("weather").value;
     let modifier = weather === "Sunny" ? 1.4 : (weather === "Rainy" ? 0.7 : 1);
-
     let estimate = Math.min(100, (place.crowd + place.events) * modifier);
 
     let output = `
@@ -142,28 +198,29 @@ function predictCrowd(place) {
     `;
 
     if (estimate > 70) {
-        output += `<p style="color:orange;">⚠️ High congestion expected!</p>`;
+        output += `<p style="color:#d32f2f;">⚠️ <strong>High congestion expected!</strong></p>`;
         output += recommend(place);
+    } else {
+        output += `<p style="color:green;">✅ <strong>Good time to visit.</strong></p>`;
     }
 
     output += "</div>";
     resultsDiv.innerHTML = output;
 }
 
-// Recommendations
 function recommend(current) {
     const sorted = places
         .filter(p => p.name !== current.name)
         .sort((a,b) => (a.crowd + a.events) - (b.crowd + b.events))
         .slice(0, 3);
 
-    let html = `<h4>🏖 Better Alternatives:</h4><ul>`;
+    let html = `<div style="background:#f0f8ff; padding:10px; border-radius:8px; margin-top:10px;">
+                <strong>🏖 Better Alternatives Nearby:</strong><ul style="margin:5px 0 0 20px; padding:0;">`;
     sorted.forEach(p => html += `<li>${p.name}</li>`);
-    html += "</ul>";
+    html += "</ul></div>";
     return html;
 }
 
-// Search mode
 function searchPlace() {
     let input = document.getElementById("searchInput").value.trim();
     if (!input) return;
@@ -171,7 +228,7 @@ function searchPlace() {
     const fuse = new Fuse(places, { keys: ["name"], threshold: 0.3 });
     const matches = fuse.search(input);
     if (!matches.length) {
-        resultsDiv.innerHTML = `<p>❌ No match found</p>`;
+        resultsDiv.innerHTML = `<div class='card'><p>❌ No data found for "${input}" in our database.</p></div>`;
         return;
     }
     predictCrowd(matches[0].item);
