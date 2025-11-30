@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Barcelona Smart Tourist Guide</title>
 
+<!-- ✨ FAVICON SETTING -->
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
 
+<!-- LEAFLET CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <style>
@@ -80,7 +82,6 @@
         list-style: none; padding: 0; margin: 0; 
         max-height: 200px; overflow-y: auto; display: none; 
         border-top: 1px solid #eee;
-        /* UPDATED: Full Width Alignment */
         position: absolute; top: 50px; left: 0; right: 0; width: 100%;
         background: white; border-radius: 15px; 
         box-shadow: 0 5px 15px rgba(0,0,0,0.1);
@@ -137,7 +138,6 @@
     
     .blue-highlight { color: #0078d7; }
     
-    /* UPDATED: Increased Font Sizes */
     .placeholder-value { color: #ccc; font-weight: bold; font-size: 3.5em; margin: 0; line-height: 1;}
     .big-score { font-size: 3.5em; font-weight: bold; margin: 0; line-height: 1; }
 
@@ -150,14 +150,14 @@
 
     /* --- RESULT CARD SPLIT LAYOUT (60/40) --- */
     .result-top-half {
-        height: 60%; /* UPDATED HEIGHT */
+        height: 60%;
         width: 100%;
         display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
         position: relative;
     }
 
     .result-bottom-half {
-        height: 40%; /* UPDATED HEIGHT */
+        height: 40%;
         width: 100%;
         display: flex; border-top: 1px solid #eee; padding-top: 5px; box-sizing: border-box; gap: 10px;
         margin-top: auto; 
@@ -247,14 +247,18 @@
 
 <div class="dashboard-container">
     
+    <!-- 1. LEFT: MAIN RESULTS CONTAINER -->
     <div class="card card-info">
+        <!-- Default State (Centered Instructions) -->
         <div id="instruction" style="color:#777; height:100%; display:flex; flex-direction:column; justify-content:center;">
             <span id="gps-status" style="font-size:0.9em; display:block; margin-bottom:5px;">Locating you...</span>
             <strong>Select an attraction on the map</strong>
         </div>
 
+        <!-- Selected State -->
         <div id="result-content" style="display:none; width: 100%; height:100%; flex-direction:column;">
             
+            <!-- TOP HALF (60%) -->
             <div class="result-top-half">
                 <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
                 <div class="label">Selected Destination</div>
@@ -263,13 +267,16 @@
                 </div>
             </div>
             
+            <!-- BOTTOM HALF (40%) -->
             <div class="result-bottom-half">
+                <!-- Left: Tags -->
                 <div class="info-left-tags">
                     <span class="tag">Attribute 1</span>
                     <span class="tag">Attribute 2</span>
                     <span class="tag">Attribute 3</span>
                 </div>
 
+                <!-- Right: Distances -->
                 <div class="info-right-dist">
                     <div class="dist-subitem">
                         <small style="color:#aaa;">From Selection</small><br>
@@ -284,12 +291,15 @@
         </div>
     </div>
 
+    <!-- 2. MIDDLE-LEFT: WEATHER CONTAINER -->
     <div class="card card-small">
         <span class="label" id="lbl-weather" style="display:none;">Weather</span>
         
         <div class="card-content-wrapper">
+            <!-- Default -->
             <div id="weather-placeholder" class="placeholder-value">--</div>
 
+            <!-- Active -->
             <div id="weather-content" style="display:none; width: 100%;">
                 <span id="weather-icon" style="font-size: 2.5em; margin: 5px 0;">☁️</span>
                 <select id="weather-select">
@@ -301,12 +311,15 @@
         </div>
     </div>
 
+    <!-- 3. MIDDLE-RIGHT: EVENTS CONTAINER -->
     <div class="card card-small">
         <span class="label" id="lbl-events" style="display:none;">Events Nearby</span>
         
         <div class="card-content-wrapper">
+            <!-- Default -->
             <div id="events-placeholder" class="placeholder-value">--</div>
 
+            <!-- Active -->
             <div id="events-content" style="display:none; width: 100%; text-align:center;">
                 <div class="events-wrapper">
                     <div id="events-display" class="evt-display">0</div>
@@ -319,6 +332,7 @@
         </div>
     </div>
 
+    <!-- 4. RIGHT: CROWD CONTAINER -->
     <div class="card card-small">
         <span class="label" id="lbl-crowd" style="display:none;">Expected Crowd</span>
         <div class="card-content-wrapper">
@@ -525,7 +539,7 @@ function handleLocationInput(latlng) {
 
     if (nearest) {
         currentSelectedPlace = nearest;
-        currentEventsValue = 0; 
+        currentEventsValue = Math.round(nearest.events); 
         
         toggleLabels(true);
 
@@ -591,7 +605,6 @@ function updateCrowdDisplay() {
     crowdEl.innerText = estimatedCrowd;
     crowdEl.className = "big-score"; 
     
-    // Color logic
     crowdEl.classList.remove("status-green", "status-orange", "status-red");
     statusEl.className = "";
     statusEl.style.color = ""; 
