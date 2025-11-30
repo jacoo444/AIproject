@@ -132,10 +132,27 @@
     .result-top-half { height: 60%; width: 100%; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; position: relative; }
     .result-bottom-half { height: 40%; width: 100%; display: flex; border-top: 1px solid #eee; padding-top: 5px; box-sizing: border-box; gap: 10px; margin-top: auto; }
 
-    .info-left-tags { flex: 1; display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-content: center; gap: 5px; border-right: 1px solid #eee; padding-right: 10px; overflow-y: auto; }
+    /* --- UPDATED FLEX RATIOS --- */
+    .info-left-tags { 
+        flex: 2; /* Takes 70% roughly */
+        display: flex; flex-direction: row; flex-wrap: wrap; 
+        justify-content: flex-start; align-content: center; 
+        gap: 5px; 
+        border-right: 1px solid #eee; 
+        padding-right: 10px; 
+        overflow-y: auto; 
+    }
+    
     .tag { background: #f0f2f5; color: #555; font-size: 0.8em; padding: 4px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap; text-transform: capitalize; }
-    .info-right-dist { flex: 1; display: flex; padding-left: 10px; align-items: center; }
-    .dist-subitem { flex: 1; text-align: center; }
+    
+    .info-right-dist { 
+        flex: 1; /* Takes 30% roughly */
+        display: flex; 
+        justify-content: center;
+        align-items: center; 
+        padding-left: 5px;
+    }
+    .dist-subitem { text-align: center; }
 
     #weather-select { border: 1px solid #ddd; border-radius: 6px; padding: 5px; font-family: inherit; color: #333; font-weight: bold; cursor: pointer; width: 100%; text-align: center; margin-top: 5px; box-sizing: border-box; height: 35px; }
     .events-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; }
@@ -161,7 +178,7 @@
         .card-crowd { width: 100%; flex: auto; max-width: none; margin-top: 10px; }
         #map-wrapper { min-height: 40vh; }
         .result-bottom-half { flex-direction: column; gap: 5px; }
-        .info-left-tags { border-right: none; border-bottom: 1px solid #eee; padding-bottom: 5px; width: 100%; padding-right:0; }
+        .info-left-tags { border-right: none; border-bottom: 1px solid #eee; padding-bottom: 5px; width: 100%; padding-right:0; justify-content: center;}
         .info-right-dist { padding-left: 0; }
     }
 </style>
@@ -228,10 +245,6 @@
                         <span class="tag" style="color:#aaa;">No Attributes</span>
                     </div>
                     <div class="info-right-dist">
-                        <div class="dist-subitem">
-                            <small style="color:#aaa;">From Selection</small><br>
-                            <span id="distance-info" style="font-weight:bold;">--</span>
-                        </div>
                         <div class="dist-subitem">
                             <small style="color:#aaa;">From You</small><br>
                             <span id="user-distance" class="blue-highlight" style="font-weight:bold;">--</span>
@@ -324,7 +337,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if(currentSelectedPlace) updateCrowdDisplay();
     });
     
-    // Time Update Listener
     const timeUpdate = () => {
         if(currentSelectedPlace) updateCrowdDisplay();
     };
@@ -349,8 +361,6 @@ function initMap() {
     placesLayer.addTo(map);
     selectionLayer.addTo(map);
     gpsLayer.addTo(map);
-
-    map.on('click', function(e) { handleLocationInput(e.latlng); });
 }
 
 function triggerGPS() {
@@ -395,9 +405,8 @@ function fetchCSV() {
             }).filter(p => p !== null && !isNaN(p.lat));
 
             places.forEach(p => {
-                // ALL UNSELECTED MARKERS ARE GREEN
                 const m = L.marker([p.lat, p.lon], { icon: greenIcon });
-                m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
+                m.on('click', () => selectPlace(p)); // UPDATED TO USE selectPlace
                 placesLayer.addLayer(m);
             });
 
@@ -422,9 +431,8 @@ searchInput.addEventListener('keyup', function() {
             li.onclick = () => {
                 searchInput.value = ""; 
                 resultsList.style.display = 'none';
-                const latlng = L.latLng(p.lat, p.lon);
-                map.setView(latlng, 18); 
-                handleLocationInput(latlng);       
+                map.setView([p.lat, p.lon], 18);
+                selectPlace(p); // UPDATED
             };
             resultsList.appendChild(li);
         });
@@ -451,74 +459,57 @@ function clearSelection() {
     document.getElementById("crowd-status").innerText = "";
 }
 
-function handleLocationInput(latlng) {
-    selectionLayer.clearLayers(); 
-    L.marker(latlng, {icon: redIcon}).addTo(selectionLayer);
+// REFACTORED SELECTION LOGIC
+function selectPlace(place) {
+    currentSelectedPlace = place;
+    currentEventsValue = 0; 
+    
+    // 1. Highlight
+    selectionLayer.clearLayers();
+    L.marker([place.lat, place.lon], {icon: redIcon}).addTo(selectionLayer);
 
-    let nearest = null;
-    let minDistance = Infinity;
+    // 2. Show UI
+    document.getElementById("unified-empty-state").style.display = "none";
+    document.getElementById("unified-active-state").style.display = "flex";
+    document.getElementById("lbl-crowd").style.display = "block";
 
-    places.forEach(p => {
-        const dist = map.distance(latlng, [p.lat, p.lon]);
-        if (dist < minDistance) { minDistance = dist; nearest = p; }
-    });
+    // 3. Populate Data
+    document.getElementById("nearest-name").innerText = place.name;
+    document.getElementById("events-display").innerText = currentEventsValue;
 
-    if (nearest) {
-        currentSelectedPlace = nearest;
-        currentEventsValue = 0; 
-        
-        document.getElementById("unified-empty-state").style.display = "none";
-        document.getElementById("unified-active-state").style.display = "flex";
-        document.getElementById("lbl-crowd").style.display = "block";
-
-        if (minDistance > 5) {
-            let d = minDistance;
-            let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
-            L.polyline([latlng, [nearest.lat, nearest.lon]], {
-                color: '#e74c3c', weight: 3, opacity: 0.7, dashArray: '10, 10'
-            }).addTo(selectionLayer);
-            document.getElementById("distance-info").innerText = dString;
-            document.getElementById("distance-info").style.color = "black";
+    // 4. Attributes
+    const attrContainer = document.getElementById("attributes-container");
+    attrContainer.innerHTML = ""; 
+    try {
+        let cleanJson = place.attributes.replace(/'/g, '"');
+        let attrs = JSON.parse(cleanJson);
+        if(!attrs || attrs.length === 0) {
+            attrContainer.innerHTML = '<span class="tag" style="color:#aaa;">No Attributes</span>';
         } else {
-            document.getElementById("distance-info").innerText = "0 m";
-            document.getElementById("distance-info").style.color = "green";
+            attrs.slice(0, 4).forEach(a => {
+                let span = document.createElement("span");
+                span.className = "tag";
+                span.innerText = a.replace(/_/g, ' '); 
+                attrContainer.appendChild(span);
+            });
         }
-
-        document.getElementById("nearest-name").innerText = nearest.name;
-        document.getElementById("events-display").innerText = currentEventsValue;
-
-        const attrContainer = document.getElementById("attributes-container");
-        attrContainer.innerHTML = ""; 
-        try {
-            let cleanJson = nearest.attributes.replace(/'/g, '"');
-            let attrs = JSON.parse(cleanJson);
-            
-            if(!attrs || attrs.length === 0) {
-                attrContainer.innerHTML = '<span class="tag" style="color:#aaa;">No Attributes</span>';
-            } else {
-                attrs.slice(0, 4).forEach(a => {
-                    let span = document.createElement("span");
-                    span.className = "tag";
-                    span.innerText = a.replace(/_/g, ' '); 
-                    attrContainer.appendChild(span);
-                });
-            }
-        } catch(e) {
-            attrContainer.innerHTML = '<span class="tag" style="color:#aaa;">--</span>';
-        }
-
-        if (userRealLocation) {
-            const distFromUser = map.distance(userRealLocation, [nearest.lat, nearest.lon]);
-            let distStringUser = distFromUser > 1000 
-                ? (distFromUser/1000).toFixed(1) + " km" 
-                : Math.round(distFromUser) + " m";
-            document.getElementById("user-distance").innerText = distStringUser;
-        } else {
-            document.getElementById("user-distance").innerText = "--";
-        }
-
-        updateCrowdDisplay();
+    } catch(e) {
+        attrContainer.innerHTML = '<span class="tag" style="color:#aaa;">--</span>';
     }
+
+    // 5. GPS Distance
+    if (userRealLocation) {
+        const distFromUser = map.distance(userRealLocation, [place.lat, place.lon]);
+        let distStringUser = distFromUser > 1000 
+            ? (distFromUser/1000).toFixed(1) + " km" 
+            : Math.round(distFromUser) + " m";
+        document.getElementById("user-distance").innerText = distStringUser;
+    } else {
+        document.getElementById("user-distance").innerText = "--";
+    }
+
+    // 6. Calc Crowd
+    updateCrowdDisplay();
 }
 
 function updateCrowdDisplay() {
@@ -544,7 +535,6 @@ function updateCrowdDisplay() {
         baseCrowd = 0; 
     }
 
-    // UPDATED MODIFIERS
     let weatherMod = 1.0;
     if (weatherState === "Cloudy") weatherMod = 0.8; 
     if (weatherState === "Rainy") weatherMod = 0.5; 
