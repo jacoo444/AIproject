@@ -3,9 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Smart Guide</title>
+<title>Barcelona Pro Map - Clustering</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; }
@@ -113,7 +115,8 @@
 
 <div class="info-panel">
     <div id="instruction" style="color:#777;">
-        Locating you...
+        <span id="gps-status">Locating you...</span><br>
+        <small>Click map or search to measure distance.</small>
     </div>
     
     <div id="result-content" style="display:none;">
@@ -134,6 +137,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
@@ -141,15 +145,15 @@ const CSV_URL = "https://raw.githubusercontent.com/jacoo444/AIproject/main/CL.cs
 
 let map;
 let places = [];        
-let userLayer = L.layerGroup(); 
+let selectionLayer = L.layerGroup(); 
+let gpsLayer = L.layerGroup();
+let markersCluster = L.markerClusterGroup(); // Initialize Cluster Group
 let userRealLocation = null; 
 let fuse; 
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
     fetchCSV();
-    
-    // AUTOMATICALLY ASK FOR LOCATION ON LAUNCH
     triggerGPS();
 });
 
@@ -160,41 +164,38 @@ function initMap() {
         attribution: '&copy; CARTO', maxZoom: 20
     }).addTo(map);
 
-    userLayer.addTo(map);
+    // Add the Cluster Group to map (it handles the blue markers now)
+    map.addLayer(markersCluster);
+    
+    selectionLayer.addTo(map);
+    gpsLayer.addTo(map);
 
     map.on('click', function(e) {
         handleLocationInput(e.latlng);
     });
 }
 
-// 1. GPS Logic
 function triggerGPS() {
     if (!navigator.geolocation) {
-        alert("Geolocation is not supported by your browser");
+        document.getElementById("gps-status").innerText = "GPS not supported";
         return;
     }
-    
-    // Request location
     navigator.geolocation.getCurrentPosition(
         (pos) => {
-            // Success: Update variable
             userRealLocation = L.latLng(pos.coords.latitude, pos.coords.longitude);
+            gpsLayer.clearLayers();
+            L.circleMarker(userRealLocation, {
+                radius: 8, fillColor: "#3388ff", color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.8
+            }).addTo(gpsLayer).bindPopup("You are here").openPopup();
             
-            // Zoom map to user
-            map.setView(userRealLocation, 16);
-            
-            // Treat the user's location as the "Selection" to find nearest attraction
-            handleLocationInput(userRealLocation);
+            map.setView(userRealLocation, 15);
+            document.getElementById("gps-status").innerText = "GPS Active 📍";
         },
-        (err) => {
-            // Error/Deny: Just update instruction text
-            document.getElementById("instruction").innerText = "Location denied. Click map or search.";
-        },
+        (err) => { document.getElementById("gps-status").innerText = "GPS Access Denied"; },
         { enableHighAccuracy: true }
     );
 }
 
-// 2. Fetch CSV
 function fetchCSV() {
     fetch(CSV_URL)
     .then(res => res.text())
@@ -210,28 +211,26 @@ function fetchCSV() {
             };
         }).filter(x => x && !isNaN(x.lat));
         
+        // Add Markers to the CLUSTER GROUP instead of directly to map
         places.forEach(p => {
-            const m = L.marker([p.lat, p.lon]).addTo(map);
+            const m = L.marker([p.lat, p.lon]);
             m.bindPopup(`<b>${p.name}</b>`);
             m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
+            markersCluster.addLayer(m);
         });
 
         fuse = new Fuse(places, { keys: ['name'], threshold: 0.4 });
     });
 }
 
-// 3. Search Logic
 const searchInput = document.getElementById('searchInput');
 const resultsList = document.getElementById('search-results');
 
 searchInput.addEventListener('keyup', function() {
     const query = this.value;
     resultsList.innerHTML = ''; 
-
     if (query.length < 2) { resultsList.style.display = 'none'; return; }
-
     const results = fuse.search(query).slice(0, 5).map(r => r.item);
-
     if (results.length > 0) {
         resultsList.style.display = 'block';
         results.forEach(p => {
@@ -241,28 +240,24 @@ searchInput.addEventListener('keyup', function() {
                 searchInput.value = ""; 
                 resultsList.style.display = 'none';
                 const latlng = L.latLng(p.lat, p.lon);
-                map.setView(latlng, 16);           
+                // We must use 'flyTo' or setView. If clustered, we might need to zoom in to see it.
+                map.setView(latlng, 18); 
                 handleLocationInput(latlng);       
             };
             resultsList.appendChild(li);
         });
-    } else {
-        resultsList.style.display = 'none';
-    }
+    } else { resultsList.style.display = 'none'; }
 });
 
-// 4. Core Logic
 function handleLocationInput(latlng) {
-    userLayer.clearLayers(); 
+    selectionLayer.clearLayers(); 
 
-    // Red Marker for Selection
     const redIcon = L.icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
         iconSize: [25, 41], iconAnchor: [12, 41]
     });
-    L.marker(latlng, {icon: redIcon}).addTo(userLayer);
+    L.marker(latlng, {icon: redIcon}).addTo(selectionLayer);
 
-    // Find Nearest
     let nearest = null;
     let minDistance = Infinity;
 
@@ -272,19 +267,16 @@ function handleLocationInput(latlng) {
     });
 
     if (nearest) {
-        // Draw line if clicked far away
         if (minDistance > 5) {
             L.polyline([latlng, [nearest.lat, nearest.lon]], {
                 color: 'red', weight: 3, opacity: 0.7, dashArray: '10, 10'
-            }).addTo(userLayer);
+            }).addTo(selectionLayer);
         }
 
-        // --- UPDATE UI ---
         document.getElementById("instruction").style.display = "none";
         document.getElementById("result-content").style.display = "block";
         document.getElementById("nearest-name").innerText = nearest.name;
         
-        // 1. Distance from Click/Search to Attraction
         if (minDistance < 5) {
             document.getElementById("distance-info").innerText = "Exact match (0m)";
             document.getElementById("distance-info").style.color = "green";
@@ -293,13 +285,11 @@ function handleLocationInput(latlng) {
             document.getElementById("distance-info").style.color = "black";
         }
 
-        // 2. Distance from REAL USER to Attraction
         if (userRealLocation) {
             const distFromUser = map.distance(userRealLocation, [nearest.lat, nearest.lon]);
             let distString = distFromUser > 1000 
                 ? (distFromUser/1000).toFixed(1) + " km" 
                 : Math.round(distFromUser) + " m";
-            
             document.getElementById("user-distance").innerText = distString;
         } else {
             document.getElementById("user-distance").innerText = "Enable GPS";
