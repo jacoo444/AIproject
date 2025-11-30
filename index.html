@@ -8,25 +8,16 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
-
-    /* --- CLUSTER COLORS --- */
-    .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background-color: rgba(41, 128, 185, 0.4); }
-    .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
-        background-color: rgba(41, 128, 185, 0.8); color: white; font-weight: bold; border-radius: 50%;
-    }
 
     /* --- HEADER (No Shadow) --- */
     header { 
         background: white; 
         color: #333; 
         padding: 15px 20px; 
-        /* Removed box-shadow */
-        border-bottom: 1px solid #eee; /* Subtle separator instead */
+        border-bottom: 1px solid #eee; 
         text-align: left;         
         font-weight: bold; 
         letter-spacing: 0.5px;
@@ -72,10 +63,10 @@
     /* Pill-shaped Search Box */
     .search-box {
         background: white; 
-        padding: 5px 15px 5px 5px; /* Right padding for icon space */
+        padding: 5px 15px 5px 5px; 
         border-radius: 30px; /* PILL SHAPE */
         box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
-        width: 320px; /* LONGER */
+        width: 320px; 
         display: flex; align-items: center;
         position: relative;
     }
@@ -290,7 +281,7 @@
     </div>
 
     <div class="card card-small">
-        <span class="label">Weather</span>
+        <span class="label" id="lbl-weather" style="display:none;">Weather</span>
         
         <div class="card-content-wrapper">
             <div id="weather-placeholder" class="placeholder-value">--</div>
@@ -307,7 +298,7 @@
     </div>
 
     <div class="card card-small">
-        <span class="label">Events Nearby</span>
+        <span class="label" id="lbl-events" style="display:none;">Events Nearby</span>
         
         <div class="card-content-wrapper">
             <div id="events-placeholder" class="placeholder-value">--</div>
@@ -325,7 +316,7 @@
     </div>
 
     <div class="card card-small">
-        <span class="label">Expected Crowd</span>
+        <span class="label" id="lbl-crowd" style="display:none;">Expected Crowd</span>
         <div class="card-content-wrapper">
             <span id="crowd-score" class="placeholder-value">--</span>
             <span id="crowd-status" style="font-weight:bold; font-size:0.8em; margin-top:5px; color:#999; min-height:15px;"></span>
@@ -335,7 +326,6 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
@@ -345,7 +335,7 @@ let map;
 let places = [];        
 let selectionLayer = L.layerGroup(); 
 let gpsLayer = L.layerGroup();
-let markersCluster = L.markerClusterGroup(); 
+let placesLayer = L.layerGroup(); 
 let userRealLocation = null; 
 let fuse; 
 let currentSelectedPlace = null; 
@@ -395,7 +385,7 @@ function initMap() {
         attribution: '&copy; CARTO', maxZoom: 20
     }).addTo(map);
 
-    map.addLayer(markersCluster);
+    placesLayer.addTo(map);
     selectionLayer.addTo(map);
     gpsLayer.addTo(map);
 
@@ -445,7 +435,7 @@ function fetchCSV() {
         places.forEach(p => {
             const m = L.marker([p.lat, p.lon], { icon: blueIcon });
             m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
-            markersCluster.addLayer(m);
+            placesLayer.addLayer(m);
         });
 
         fuse = new Fuse(places, { keys: ['name'], threshold: 0.4 });
@@ -487,10 +477,20 @@ function modifyEvents(amount) {
     updateCrowdDisplay(); 
 }
 
+function toggleLabels(visible) {
+    const val = visible ? 'block' : 'none';
+    document.getElementById('lbl-weather').style.display = val;
+    document.getElementById('lbl-events').style.display = val;
+    document.getElementById('lbl-crowd').style.display = val;
+}
+
 function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
     
+    // Hide Labels
+    toggleLabels(false);
+
     // Reset Info Card
     document.getElementById("result-content").style.display = "none"; 
     document.getElementById("instruction").style.display = "flex";
@@ -527,6 +527,9 @@ function handleLocationInput(latlng) {
     if (nearest) {
         currentSelectedPlace = nearest;
         currentEventsValue = 0; 
+        
+        // Show Labels
+        toggleLabels(true);
 
         if (minDistance > 5) {
             let d = minDistance;
