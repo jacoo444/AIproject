@@ -20,19 +20,19 @@
         background-color: rgba(41, 128, 185, 0.8); color: white; font-weight: bold; border-radius: 50%;
     }
 
-    /* --- FLOATING HEADER --- */
+    /* --- FULL WIDTH HEADER --- */
     header { 
         background: white; 
         color: #333; 
         padding: 15px 20px; 
-        margin: 15px 15px 0 15px; /* Floating margins */
-        border-radius: 15px;      /* Rounded corners */
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        text-align: left;         /* Left aligned */
+        /* Removed margins and radius for full-width look */
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        text-align: left;         
         font-weight: bold; 
         letter-spacing: 0.5px;
         font-size: 1.2em;
         flex-shrink: 0;
+        z-index: 1001;
     }
 
     /* --- MAP CONTAINER --- */
@@ -92,6 +92,10 @@
         padding: 15px;
         text-align: center;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
+        
+        /* FIXED HEIGHT FOR ALL CARDS */
+        height: 200px; 
+        box-sizing: border-box;
     }
 
     .card-info { flex: 2; position: relative; min-width: 300px; } 
@@ -99,7 +103,7 @@
 
     .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:5px;}
     .value { font-weight: bold; font-size: 1.1em; color: #333; }
-    .highlight { color: #2c3e50; font-size: 1.3em; font-weight: bold; margin: 5px 0; }
+    .highlight { color: #2c3e50; font-size: 1.3em; font-weight: bold; margin: 5px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
     .blue-highlight { color: #0078d7; }
     
     .placeholder-text { color: #999; font-weight: bold; font-size: 0.9em; }
@@ -110,12 +114,48 @@
     }
     .close-btn:hover { color: #c0392b; }
 
+    /* --- FORM CONTROLS --- */
+    /* Weather Dropdown */
     #weather-select {
         border: 1px solid #ddd; border-radius: 6px; padding: 5px;
         font-family: inherit; color: #333; font-weight: bold; cursor: pointer;
-        width: 100%; text-align: center; margin-top: 5px;
+        width: 100%; text-align: center; margin-top: 5px; box-sizing: border-box;
+        height: 35px; /* Fixed Height */
     }
 
+    /* Events Controls */
+    .events-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        width: 100%;
+        margin-top: 5px;
+    }
+    
+    .evt-btn {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #f9f9f9;
+        font-weight: bold;
+        color: #333;
+        cursor: pointer;
+        /* Same Height/Look as Dropdown */
+        height: 35px;
+        width: 35px;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .evt-btn:hover { background: #eef; color: #0078d7; border-color: #aaf; }
+    
+    .evt-display {
+        font-size: 1.4em;
+        font-weight: bold;
+        color: #8e44ad;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    /* Colors */
     .status-green { color: #27ae60; }
     .status-orange { color: #f39c12; }
     .status-red { color: #c0392b; }
@@ -130,9 +170,10 @@
         border-top: 1px solid #eee;
         padding-top: 10px;
         gap: 10px;
+        height: 100%; /* Fill available space */
     }
     
-    /* Left side: Tags (Side by Side) */
+    /* Left side: Tags */
     .info-left-tags {
         flex: 1;
         display: flex;
@@ -143,6 +184,8 @@
         gap: 5px;            
         border-right: 1px solid #eee;
         padding-right: 10px;
+        max-height: 110px; /* Prevent overflow */
+        overflow-y: auto;
     }
     
     .tag {
@@ -163,8 +206,8 @@
     .dist-subitem { flex: 1; text-align: center; }
 
     @media (max-width: 850px) {
-        .dashboard-container { flex-direction: column; }
-        .card { width: 100%; max-width: none; box-sizing: border-box;}
+        .dashboard-container { flex-direction: column; height: auto;}
+        .card { width: 100%; max-width: none; box-sizing: border-box; margin-bottom: 10px;}
         #map-wrapper { min-height: 40vh; }
         .info-split-layout { flex-direction: column; gap: 10px; }
         .info-left-tags { border-right: none; border-bottom: 1px solid #eee; padding-bottom: 10px; width: 100%; padding-right:0; }
@@ -201,7 +244,7 @@
             <strong>Select an attraction on the map</strong>
         </div>
 
-        <div id="result-content" style="display:none; width: 100%;">
+        <div id="result-content" style="display:none; width: 100%; height:100%; flex-direction:column;">
             <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
             <div class="label">Selected Destination</div>
             <div class="highlight" id="nearest-name">--</div>
@@ -244,8 +287,17 @@
 
     <div class="card card-small">
         <span class="label">Events Nearby</span>
-        <span id="events-score" class="status-purple" style="font-size:2.5em; font-weight:bold; margin: 5px 0; display:none;">--</span>
-        <span id="events-placeholder" class="placeholder-text">Select Place</span>
+        
+        <div id="events-placeholder" class="placeholder-text">Select Place</div>
+
+        <div id="events-content" style="display:none; width: 100%; text-align:center;">
+             <div class="events-controls">
+                <button class="evt-btn" onclick="modifyEvents(-1)">-</button>
+                <span id="events-display" class="evt-display">0</span>
+                <button class="evt-btn" onclick="modifyEvents(1)">+</button>
+             </div>
+             <small style="color:#aaa; display:block; margin-top:5px;">Adjust Level (0-100)</small>
+        </div>
     </div>
 
     <div class="card card-small">
@@ -271,8 +323,9 @@ let markersCluster = L.markerClusterGroup();
 let userRealLocation = null; 
 let fuse; 
 let currentSelectedPlace = null; 
+let currentEventsValue = 0; // NEW: Global state for currently selected events
 
-// --- Custom Icons (70% size) ---
+// --- Custom Icons ---
 const smallIconSize = [18, 29];
 const smallIconAnchor = [9, 29];
 const smallShadowSize = [29, 29];
@@ -297,7 +350,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("weather-select").addEventListener("change", function() {
         updateWeatherIcon();
         if(currentSelectedPlace) {
-            updateCrowdDisplay(currentSelectedPlace);
+            updateCrowdDisplay();
         }
     });
 });
@@ -398,16 +451,32 @@ searchInput.addEventListener('keyup', function() {
     } else { resultsList.style.display = 'none'; }
 });
 
+// NEW: Button Logic for Events
+function modifyEvents(amount) {
+    if (!currentSelectedPlace) return;
+    
+    currentEventsValue += (amount * 5); // Increment by 5 for better UX
+    if (currentEventsValue < 0) currentEventsValue = 0;
+    if (currentEventsValue > 100) currentEventsValue = 100;
+    
+    document.getElementById("events-display").innerText = currentEventsValue;
+    updateCrowdDisplay(); // Recalculate crowd
+}
+
 function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
     
     // UI Resets
+    document.getElementById("result-content").style.display = "none"; // Hide content
+    document.getElementById("result-content").style.display = ""; // Remove flex
     document.getElementById("result-content").style.display = "none";
     document.getElementById("instruction").style.display = "block";
+    
     document.getElementById("weather-content").style.display = "none";
     document.getElementById("weather-placeholder").style.display = "block";
-    document.getElementById("events-score").style.display = "none";
+    
+    document.getElementById("events-content").style.display = "none";
     document.getElementById("events-placeholder").style.display = "block";
 
     const crowdEl = document.getElementById("crowd-score");
@@ -433,6 +502,7 @@ function handleLocationInput(latlng) {
 
     if (nearest) {
         currentSelectedPlace = nearest;
+        currentEventsValue = Math.round(nearest.events); // Set local state from CSV
 
         if (minDistance > 5) {
             let d = minDistance;
@@ -449,15 +519,15 @@ function handleLocationInput(latlng) {
 
         // Show Panels
         document.getElementById("instruction").style.display = "none";
-        document.getElementById("result-content").style.display = "block";
+        document.getElementById("result-content").style.display = "flex"; // Show as Flex
         document.getElementById("nearest-name").innerText = nearest.name;
+        
         document.getElementById("weather-placeholder").style.display = "none";
         document.getElementById("weather-content").style.display = "block";
-        document.getElementById("events-placeholder").style.display = "none";
         
-        const eventEl = document.getElementById("events-score");
-        eventEl.style.display = "block";
-        eventEl.innerText = Math.round(nearest.events);
+        document.getElementById("events-placeholder").style.display = "none";
+        document.getElementById("events-content").style.display = "block";
+        document.getElementById("events-display").innerText = currentEventsValue;
 
         if (userRealLocation) {
             const distFromUser = map.distance(userRealLocation, [nearest.lat, nearest.lon]);
@@ -469,19 +539,33 @@ function handleLocationInput(latlng) {
             document.getElementById("user-distance").innerText = "--";
         }
 
-        updateCrowdDisplay(nearest);
+        updateCrowdDisplay();
     }
 }
 
-function updateCrowdDisplay(place) {
+// NEW: Crowd Algorithm
+function updateCrowdDisplay() {
+    if(!currentSelectedPlace) return;
+
+    const place = currentSelectedPlace;
     const weatherState = document.getElementById("weather-select").value;
     
-    let modifier = 1;
-    if (weatherState === "Sunny") modifier = 1.2; 
-    if (weatherState === "Rainy") modifier = 0.7; 
+    // 1. Calculate Base Score (Weighted)
+    // 60% importance to Base Crowd, 40% importance to Events
+    // Both inputs are 0-100, result is 0-100
+    let baseScore = (place.crowd * 0.6) + (currentEventsValue * 0.4);
+
+    // 2. Weather Multiplier
+    let modifier = 1.0;
+    if (weatherState === "Sunny") modifier = 1.15; // +15%
+    if (weatherState === "Rainy") modifier = 0.75; // -25%
     
-    let estimatedCrowd = Math.round((place.crowd + place.events) * modifier);
+    // 3. Final Calculation
+    let estimatedCrowd = Math.round(baseScore * modifier);
+    
+    // Clamp to 100
     if (estimatedCrowd > 100) estimatedCrowd = 100;
+    if (estimatedCrowd < 0) estimatedCrowd = 0;
     
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
