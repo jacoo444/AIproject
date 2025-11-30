@@ -12,284 +12,149 @@
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
 
-    /* --- MARKER DOT STYLES (RINGS) --- */
+    /* --- MARKER DOT STYLES --- */
     .dot-marker {
         border-radius: 50%;
         border: 2px solid white;
         box-shadow: 0 1px 3px rgba(0,0,0,0.4);
         box-sizing: border-box;
-        opacity: 0.6; 
+        background-clip: padding-box;
     }
+    
+    /* Active Places (Green) */
     .dot-green {
-        background-color: #27ae60; /* Solid Green Fill */
+        background-color: #27ae60;
+        opacity: 0.8; 
     }
+    
+    /* Selected Place (Red) */
     .dot-red {
-        background-color: #c0392b; /* Solid Red Fill */
-        opacity: 1; /* Selected is fully visible */
+        background-color: #c0392b;
+        opacity: 1; 
         z-index: 1000 !important; 
+        border-width: 3px;
+    }
+
+    /* No Data Places (Grey & Faded) */
+    .dot-grey {
+        background-color: #95a5a6; /* Neutral Grey */
+        opacity: 0.4; /* Low Opacity to fade out */
+        border-color: #ecf0f1;
     }
 
     /* --- HEADER --- */
     header { 
-        background: white; 
-        color: #333; 
-        padding: 10px 20px; 
-        border-bottom: 1px solid #eee; 
-        z-index: 1002; 
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: space-between; 
-        flex-wrap: wrap; 
-        gap: 10px;
+        background: white; color: #333; padding: 10px 20px; 
+        border-bottom: 1px solid #eee; z-index: 1002; position: relative;
+        display: flex; align-items: center; justify-content: space-between; 
+        flex-wrap: wrap; gap: 10px;
     }
+    .header-title { font-weight: bold; letter-spacing: 0.5px; font-size: 1.2em; }
+    .header-controls { display: flex; gap: 10px; align-items: center; }
 
-    .header-title {
-        font-weight: bold; 
-        letter-spacing: 0.5px;
-        font-size: 1.2em;
-    }
-
-    .header-controls {
-        display: flex; 
-        gap: 10px; 
-        align-items: center;
-    }
-
-    /* --- MAP CONTAINER --- */
-    #map-wrapper {
-        padding: 0; 
-        flex-grow: 1;
-        position: relative;
-        min-height: 0;
-    }
-
-    #map-container { 
-        height: 100%; width: 100%; 
-        border-radius: 0; 
-        overflow: hidden; 
-        position: relative;
-    }
+    /* --- MAP --- */
+    #map-wrapper { padding: 0; flex-grow: 1; position: relative; min-height: 0; }
+    #map-container { height: 100%; width: 100%; border-radius: 0; overflow: hidden; position: relative; }
     #map { height: 100%; width: 100%; z-index: 1; }
 
-    /* --- CONTROLS STYLING --- */
+    /* --- CONTROLS --- */
     .gps-btn {
-        background: #f0f2f5; border: none; padding: 0; 
-        border-radius: 50%; 
-        cursor: pointer;
-        border: 1px solid #ddd;
-        font-size: 18px; height: 38px; width: 38px;
+        background: #f0f2f5; border: none; padding: 0; border-radius: 50%; cursor: pointer;
+        border: 1px solid #ddd; font-size: 18px; height: 38px; width: 38px;
         display: flex; align-items: center; justify-content: center;
     }
     .gps-btn:hover { background: #eef; color: #0078d7; }
 
     .search-box {
-        background: #f0f2f5; 
-        padding: 5px 15px 5px 15px; 
-        border-radius: 30px; 
-        border: 1px solid #ddd;
-        width: 250px; 
-        display: flex; align-items: center;
-        position: relative;
-        height: 38px; 
-        box-sizing: border-box;
+        background: #f0f2f5; padding: 5px 15px; border-radius: 30px; 
+        border: 1px solid #ddd; width: 250px; display: flex; align-items: center;
+        position: relative; height: 38px; box-sizing: border-box;
     }
-    .search-box input { 
-        flex-grow: 1; border: none; outline: none; padding: 0 10px; font-size: 14px; background: transparent;
-    }
-    .search-icon {
-        font-size: 16px; color: #888; cursor: default;
-    }
+    .search-box input { flex-grow: 1; border: none; outline: none; padding: 0 10px; font-size: 14px; background: transparent; }
+    .search-icon { font-size: 16px; color: #888; cursor: default; }
 
     #search-results {
-        list-style: none; padding: 0; margin: 0; 
-        max-height: 300px; overflow-y: auto; display: none; 
-        border-top: 1px solid #eee;
-        position: absolute; top: 45px; left: 0; right: 0; width: 100%;
-        background: white; border-radius: 15px; 
-        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-        z-index: 2005; 
-        box-sizing: border-box;
+        list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; display: none; 
+        border-top: 1px solid #eee; position: absolute; top: 45px; left: 0; right: 0; width: 100%;
+        background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        z-index: 2005; box-sizing: border-box;
     }
     #search-results li { padding: 12px 15px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px; text-align: left;}
     #search-results li:first-child { border-radius: 15px 15px 0 0; }
     #search-results li:last-child { border-radius: 0 0 15px 15px; border-bottom: none; }
     #search-results li:hover { background-color: #f0f8ff; color: #0078d7; }
 
-    /* --- DASHBOARD CONTAINER --- */
+    /* --- DASHBOARD --- */
     .dashboard-container {
-        padding: 15px;
-        display: flex;
-        gap: 15px;
-        justify-content: center;
-        align-items: stretch;
-        flex-shrink: 0;
-        background: #f0f2f5;
-        z-index: 1001;
+        padding: 15px; display: flex; gap: 15px; justify-content: center; align-items: stretch;
+        flex-shrink: 0; background: #f0f2f5; z-index: 1001;
     }
 
-    /* --- UNIFIED CARD --- */
     .card-unified {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        display: flex;
-        flex-direction: row; 
-        flex-grow: 1; /* Fills remaining space */
-        height: 180px; 
-        box-sizing: border-box;
-        overflow: hidden; 
-        position: relative;
+        background: white; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        flex: 4; height: 180px; box-sizing: border-box; overflow: hidden; position: relative;
     }
 
-    /* STATES FOR UNIFIED CARD */
     #unified-empty-state {
-        width: 100%; height: 100%;
-        display: flex; flex-direction: column; 
-        justify-content: center; align-items: center;
-        text-align: center; color: #777;
+        width: 100%; height: 100%; display: flex; flex-direction: column; 
+        justify-content: center; align-items: center; text-align: center; color: #777;
     }
-
     #unified-active-state {
-        width: 100%; height: 100%;
-        display: none; /* Hidden by default */
-        flex-direction: row;
+        width: 100%; height: 100%; display: none; flex-direction: row;
     }
 
-    /* Inner Sections */
     .unified-section {
-        padding: 15px;
-        display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-        height: 100%;
-        box-sizing: border-box;
-        position: relative;
+        padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+        height: 100%; box-sizing: border-box; position: relative;
     }
-    
-    /* INFO: Flexible width */
-    .section-info { 
-        flex-grow: 1; border-right: 1px solid #eee; min-width: 250px; 
-    }
-    /* WEATHER & EVENTS: Fixed Square Width */
-    .section-weather { 
-        flex: 0 0 180px; width: 180px; border-right: 1px solid #eee; 
-    }
-    .section-events { 
-        flex: 0 0 180px; width: 180px;
-    }
+    .section-info { flex-grow: 1; border-right: 1px solid #eee; min-width: 250px; }
+    .section-weather { flex: 0 0 180px; width: 180px; border-right: 1px solid #eee; }
+    .section-events { flex: 0 0 180px; width: 180px; }
 
-    /* --- CROWD CARD (Separate, Square) --- */
     .card-crowd {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        padding: 15px;
-        text-align: center;
-        display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
-        height: 180px; 
-        box-sizing: border-box;
-        flex: 0 0 180px; width: 180px;
+        background: white; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        padding: 15px; text-align: center; display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+        height: 180px; box-sizing: border-box; flex: 0 0 180px; width: 180px;
     }
 
-    .card-content-wrapper {
-        flex-grow: 1;
-        display: flex; flex-direction: column; justify-content: center; align-items: center;
-        width: 100%;
-    }
-
+    .card-content-wrapper { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; }
     .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:5px; width: 100%; text-align: center;}
-    
-    .highlight { 
-        color: #2c3e50; font-size: 1.3em; font-weight: bold; 
-        white-space: normal; line-height: 1.2; padding: 0 25px; 
-    }
-    
+    .highlight { color: #2c3e50; font-size: 1.3em; font-weight: bold; white-space: normal; line-height: 1.2; padding: 0 25px; }
     .blue-highlight { color: #0078d7; }
-    
     .placeholder-value { color: #ccc; font-weight: bold; font-size: 3.5em; margin: 0; line-height: 1;}
     .big-score { font-size: 3.5em; font-weight: bold; margin: 0; line-height: 1; }
 
-    /* --- CLEAR BUTTON (Bold X) --- */
     .close-btn {
-        position: absolute; 
-        top: 5px; 
-        left: 10px; 
-        font-size: 28px; 
-        font-weight: 900; 
-        color: #999; 
-        cursor: pointer; 
-        line-height: 1;
-        z-index: 20;
-        transition: color 0.2s;
+        position: absolute; top: 5px; left: 10px; font-size: 28px; font-weight: 900; 
+        color: #999; cursor: pointer; line-height: 1; z-index: 20; transition: color 0.2s;
     }
     .close-btn:hover { color: #c0392b; }
 
-    /* --- RESULT CARD LAYOUT --- */
-    .result-top-half {
-        height: 60%; width: 100%;
-        display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
-        position: relative;
-    }
+    .result-top-half { height: 60%; width: 100%; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; position: relative; }
+    .result-bottom-half { height: 40%; width: 100%; display: flex; border-top: 1px solid #eee; padding-top: 5px; box-sizing: border-box; gap: 10px; margin-top: auto; }
 
-    .result-bottom-half {
-        height: 40%; width: 100%;
-        display: flex; border-top: 1px solid #eee; padding-top: 5px; box-sizing: border-box; gap: 10px;
-        margin-top: auto; 
-    }
-
-    .info-left-tags {
-        flex: 1; display: flex; flex-direction: row; flex-wrap: wrap;     
-        justify-content: center; align-content: center; gap: 5px;            
-        border-right: 1px solid #eee; padding-right: 10px; overflow-y: auto; 
-    }
-    .tag {
-        background: #f0f2f5; color: #555; 
-        font-size: 0.8em; padding: 4px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap; 
-    }
-    .info-right-dist {
-        flex: 1; display: flex; padding-left: 10px; align-items: center;
-    }
+    /* Tag Styling */
+    .info-left-tags { flex: 1; display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-content: center; gap: 5px; border-right: 1px solid #eee; padding-right: 10px; overflow-y: auto; }
+    .tag { background: #f0f2f5; color: #555; font-size: 0.8em; padding: 4px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap; text-transform: capitalize; }
+    
+    .info-right-dist { flex: 1; display: flex; padding-left: 10px; align-items: center; }
     .dist-subitem { flex: 1; text-align: center; }
 
-    /* --- CONTROLS Styling --- */
-    #weather-select {
-        border: 1px solid #ddd; border-radius: 6px; padding: 5px;
-        font-family: inherit; color: #333; font-weight: bold; cursor: pointer;
-        width: 100%; text-align: center; margin-top: 5px; box-sizing: border-box;
-        height: 35px;
-    }
-
-    .events-wrapper {
-        display: flex; flex-direction: column; align-items: center; width: 100%;
-    }
-    .events-btn-row {
-        display: flex; flex-direction: row; align-items: center; justify-content: center;
-        gap: 10px; width: 100%; margin-top: 5px;
-    }
-    .evt-btn {
-        border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9;
-        font-weight: bold; color: #333; cursor: pointer;
-        height: 35px; width: 35px;
-        display: flex; align-items: center; justify-content: center;
-    }
+    #weather-select { border: 1px solid #ddd; border-radius: 6px; padding: 5px; font-family: inherit; color: #333; font-weight: bold; cursor: pointer; width: 100%; text-align: center; margin-top: 5px; box-sizing: border-box; height: 35px; }
+    .events-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; }
+    .events-btn-row { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 5px; }
+    .evt-btn { border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9; font-weight: bold; color: #333; cursor: pointer; height: 35px; width: 35px; display: flex; align-items: center; justify-content: center; }
     .evt-btn:hover { background: #eef; color: #0078d7; border-color: #aaf; }
-    
-    .evt-display {
-        font-size: 3.5em; font-weight: bold; color: #8e44ad;
-        min-width: 40px; text-align: center; line-height: 1; margin-bottom: 5px;
-    }
+    .evt-display { font-size: 3.5em; font-weight: bold; color: #8e44ad; min-width: 40px; text-align: center; line-height: 1; margin-bottom: 5px; }
 
-    /* Colors */
     .status-green { color: #27ae60; }
     .status-orange { color: #f39c12; }
     .status-red { color: #c0392b; }
-    .status-neutral { color: #ccc; }
-    .status-purple { color: #8e44ad; }
 
     @media (max-width: 1000px) {
         header { flex-direction: column; align-items: stretch; }
         .header-controls { justify-content: space-between; }
         .search-box { width: 100%; }
-        
         .dashboard-container { flex-direction: column; height: auto;}
         .card-unified { flex-direction: column; height: auto; width: 100%;}
         #unified-active-state { flex-direction: column; }
@@ -327,18 +192,15 @@
 <div class="dashboard-container">
     
     <div class="card-unified">
-        
         <div id="unified-empty-state">
             <span id="gps-status" style="font-size:0.9em; display:block; margin-bottom:10px;">Locating you...</span>
             <strong style="font-size:1.2em; color:#333;">Select an attraction on the map</strong>
         </div>
 
         <div id="unified-active-state">
-            
             <div class="unified-section section-info">
                 <div class="result-top-half">
                     <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
-                    
                     <div class="label">Selected Destination</div>
                     <div style="flex-grow:1; display:flex; align-items:center; justify-content:center;">
                         <div class="highlight" id="nearest-name">--</div>
@@ -389,8 +251,9 @@
                     </div>
                 </div>
             </div>
+        </div> 
+    </div>
 
-        </div> </div>
     <div class="card card-crowd">
         <span class="label" id="lbl-crowd" style="display:none;">Expected Crowd</span>
         <div class="card-content-wrapper">
@@ -418,9 +281,10 @@ let fuse;
 let currentSelectedPlace = null; 
 let currentEventsValue = 0; 
 
-// Icons
+// ICONS
 const greenIcon = L.divIcon({ className: 'dot-marker dot-green', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
 const redIcon = L.divIcon({ className: 'dot-marker dot-red', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
+const greyIcon = L.divIcon({ className: 'dot-marker dot-grey', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
@@ -486,20 +350,12 @@ function fetchCSV() {
     .then(text => {
         const lines = text.split("\n").slice(1);
         places = lines.map(l => {
-            // Updated Regex to handle names with spaces properly
             const c = l.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [];
             const cleanC = c.map(val => val.replace(/^"|"$/g, '').trim());
 
             if (cleanC.length < 3) return null; 
             
-            // INDICES (based on places_database.csv):
-            // 0: name
-            // 1: lat
-            // 2: lon
-            // 3: google_id (ignored here)
-            // 4: attributes
-            // 5: popular_times
-            
+            // Indices: 0=name, 1=lat, 2=lon, 3=gid, 4=attr, 5=pop_times
             let name = cleanC[0] || "Unknown";
             let lat = parseFloat(cleanC[1]);
             let lon = parseFloat(cleanC[2]);
@@ -516,7 +372,18 @@ function fetchCSV() {
         }).filter(x => x && !isNaN(x.lat));
         
         places.forEach(p => {
-            const m = L.marker([p.lat, p.lon], { icon: greenIcon });
+            // Determine Icon based on Data Availability
+            let hasData = false;
+            try {
+                // Check if popular_times is valid JSON array with content
+                if (p.popular_times && p.popular_times !== "[]" && p.popular_times.length > 5) {
+                    hasData = true;
+                }
+            } catch (e) {}
+
+            const iconToUse = hasData ? greenIcon : greyIcon;
+
+            const m = L.marker([p.lat, p.lon], { icon: iconToUse });
             m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
             placesLayer.addLayer(m);
         });
@@ -588,9 +455,8 @@ function handleLocationInput(latlng) {
 
     if (nearest) {
         currentSelectedPlace = nearest;
-        currentEventsValue = 0; // Default to 0 for now as 'events' column is gone
+        currentEventsValue = 0; 
         
-        // Switch UI to Active
         document.getElementById("unified-empty-state").style.display = "none";
         document.getElementById("unified-active-state").style.display = "flex";
         document.getElementById("lbl-crowd").style.display = "block";
@@ -611,11 +477,9 @@ function handleLocationInput(latlng) {
         document.getElementById("nearest-name").innerText = nearest.name;
         document.getElementById("events-display").innerText = currentEventsValue;
 
-        // Parse Attributes Tags
         const attrContainer = document.getElementById("attributes-container");
         attrContainer.innerHTML = ""; 
         try {
-            // Safe replace for single quotes if present
             let cleanJson = nearest.attributes.replace(/'/g, '"');
             let attrs = JSON.parse(cleanJson);
             
@@ -630,7 +494,6 @@ function handleLocationInput(latlng) {
                 });
             }
         } catch(e) {
-            // console.log("Attr Parse Error", e);
             attrContainer.innerHTML = '<span class="tag" style="color:#aaa;">--</span>';
         }
 
@@ -662,11 +525,9 @@ function updateCrowdDisplay() {
         if (schedule.length > 0) {
             const now = new Date();
             // Map JS Day (0=Sun) to Python/Populartimes Day (0=Mon usually)
-            // Python: 0=Mon, 1=Tue... 6=Sun
             let dayIndex = now.getDay() === 0 ? 6 : now.getDay() - 1; 
             let hourIndex = now.getHours();
             
-            // Try to find the day object by name or index
             let dayData = schedule.find(d => d.name && ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].indexOf(d.name) === dayIndex);
             if (!dayData && schedule[dayIndex]) dayData = schedule[dayIndex];
 
@@ -675,7 +536,6 @@ function updateCrowdDisplay() {
             }
         }
     } catch(e) {
-        // console.log("PopTimes Parse Error", e);
         baseCrowd = 0; 
     }
 
