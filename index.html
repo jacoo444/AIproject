@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script> <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 
 <style>
@@ -26,7 +26,6 @@
     }
     .dot-green { background-color: #27ae60; opacity: 0.8; }
     .dot-red { background-color: #c0392b; opacity: 1; z-index: 1000 !important; }
-    .dot-grey { background-color: #95a5a6; opacity: 0.4; border-color: #ecf0f1; }
 
     /* --- HEADER --- */
     header { 
@@ -62,12 +61,8 @@
         background: #f0f2f5; border: none; padding: 0; border-radius: 50%; cursor: pointer;
         border: 1px solid #ddd; font-size: 18px; height: 38px; width: 38px;
         display: flex; align-items: center; justify-content: center;
-        transition: all 0.2s;
     }
     .gps-btn:hover { background: #eef; color: #0078d7; }
-    
-    /* Heatmap Active State */
-    .gps-btn.active { background: #ffeb3b; border-color: #fbc02d; color: #e65100; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
 
     .search-box {
         background: #f0f2f5; padding: 5px 15px; border-radius: 30px; 
@@ -200,7 +195,6 @@
             <span class="search-icon">🔍</span>
             <ul id="search-results"></ul>
         </div>
-        <button class="gps-btn" onclick="toggleHeatmap()" title="Toggle Crowd Heatmap" id="heatmap-btn">🔥</button>
         <button class="gps-btn" onclick="triggerGPS()" title="Recenter on Me">📍</button>
     </div>
 </header>
@@ -220,6 +214,7 @@
         </div>
 
         <div id="unified-active-state">
+            
             <div class="unified-section section-info">
                 <div class="result-top-half">
                     <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
@@ -251,8 +246,8 @@
                     <div id="weather-content" style="width: 100%; text-align: center;">
                         <span id="weather-icon" style="font-size: 2.5em; margin: 5px 0;">☁️</span>
                         <select id="weather-select">
-                            <option value="Cloudy" selected>Cloudy</option>
-                            <option value="Sunny">Sunny</option>
+                            <option value="Sunny" selected>Sunny</option>
+                            <option value="Cloudy">Cloudy</option>
                             <option value="Rainy">Rainy</option>
                         </select>
                     </div>
@@ -283,11 +278,11 @@
             <span id="crowd-status" style="font-weight:bold; font-size:1.1em; margin-top:5px; color:#999; min-height:20px;"></span>
         </div>
     </div>
+
 </div>
 
 <script>
 const CSV_URL = "places_database.csv";
-const HEATMAP_JSON_URL = "heatmap_data.json";
 
 let map;
 let places = [];        
@@ -299,15 +294,9 @@ let fuse;
 let currentSelectedPlace = null; 
 let currentEventsValue = 0; 
 
-// Heatmap Globals
-let heatLayer = null;
-let heatDataPoints = [];
-let isHeatmapActive = false;
-
 // ICONS
 const greenIcon = L.divIcon({ className: 'dot-marker dot-green', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
 const redIcon = L.divIcon({ className: 'dot-marker dot-red', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
-const greyIcon = L.divIcon({ className: 'dot-marker dot-grey', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
 
 document.addEventListener("DOMContentLoaded", () => {
     // Populate Hours
@@ -327,7 +316,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     initMap();
     fetchCSV();
-    fetchHeatmapData(); 
     triggerGPS();
     
     // Listeners
@@ -336,19 +324,18 @@ document.addEventListener("DOMContentLoaded", () => {
         if(currentSelectedPlace) updateCrowdDisplay();
     });
     
+    // Time Update Listener
     const timeUpdate = () => {
         if(currentSelectedPlace) updateCrowdDisplay();
-        if(isHeatmapActive) updateHeatmapLayer();
     };
-    
     document.getElementById("day-select").addEventListener("change", timeUpdate);
     document.getElementById("hour-select").addEventListener("change", timeUpdate);
 });
 
 function updateWeatherIcon() {
     const val = document.getElementById("weather-select").value;
-    let icon = "☁️";
-    if (val === "Sunny") icon = "☀️";
+    let icon = "☀️";
+    if (val === "Cloudy") icon = "☁️";
     if (val === "Rainy") icon = "🌧️";
     document.getElementById("weather-icon").innerText = icon;
 }
@@ -359,80 +346,16 @@ function initMap() {
         attribution: '&copy; CARTO', maxZoom: 20
     }).addTo(map);
 
-    selectionLayer.addTo(map);
     placesLayer.addTo(map);
+    selectionLayer.addTo(map);
     gpsLayer.addTo(map);
 
     map.on('click', function(e) { handleLocationInput(e.latlng); });
 }
 
-// --- HEATMAP LOGIC ---
-function fetchHeatmapData() {
-    fetch(HEATMAP_JSON_URL)
-    .then(res => res.json())
-    .then(data => {
-        heatDataPoints = data;
-    })
-    .catch(err => console.log("Heatmap JSON missing:", err));
-}
-
-function toggleHeatmap() {
-    isHeatmapActive = !isHeatmapActive;
-    const btn = document.getElementById("heatmap-btn");
-    
-    if(isHeatmapActive) {
-        btn.classList.add("active");
-        updateHeatmapLayer();
-    } else {
-        btn.classList.remove("active");
-        if(heatLayer) {
-            map.removeLayer(heatLayer);
-            heatLayer = null;
-        }
-    }
-}
-
-function updateHeatmapLayer() {
-    if(!heatDataPoints || heatDataPoints.length === 0) return;
-
-    const day = parseInt(document.getElementById("day-select").value);
-    const hour = parseInt(document.getElementById("hour-select").value);
-
-    // Filter points for better performance & contrast
-    const points = [];
-    heatDataPoints.forEach(place => {
-        if(place.schedule && place.schedule[day]) {
-            let rawIntensity = place.schedule[day][hour];
-            
-            if(rawIntensity > 5) { // Ignore very low noise (<5%)
-                // Adjusted scaling for better visual impact
-                // Map 0-100 scale to 0.0-1.0
-                // Capping individual points at 0.6 so only clusters turn red
-                let normalized = Math.min(rawIntensity / 90, 0.7); 
-                points.push([place.lat, place.lon, normalized]);
-            }
-        }
-    });
-
-    if(heatLayer) map.removeLayer(heatLayer);
-
-    if (points.length > 0) {
-        heatLayer = L.heatLayer(points, {
-            radius: 25,   // Smaller radius = sharper blobs
-            blur: 15,     // Less blur = clearer hotspots
-            maxZoom: 15,
-            max: 1.0,     // Max intensity cap
-            gradient: {0.3: 'blue', 0.6: 'lime', 0.95: 'red'}
-        }).addTo(map);
-        
-        placesLayer.bringToFront();
-    }
-}
-// ---------------------
-
 function triggerGPS() {
     if (!navigator.geolocation) {
-        console.log("GPS not supported");
+        document.getElementById("gps-status").innerText = "GPS not supported";
         return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -451,7 +374,7 @@ function triggerGPS() {
                document.getElementById("user-distance").innerText = distString;
             }
         },
-        (err) => { console.log("GPS Denied"); },
+        (err) => { document.getElementById("gps-status").innerText = "GPS Access Denied"; },
         { enableHighAccuracy: true }
     );
 }
@@ -472,10 +395,8 @@ function fetchCSV() {
             }).filter(p => p !== null && !isNaN(p.lat));
 
             places.forEach(p => {
-                let hasData = false;
-                try { if (p.popular_times.length > 20) hasData = true; } catch (e) {}
-                const iconToUse = hasData ? greenIcon : greyIcon;
-                const m = L.marker([p.lat, p.lon], { icon: iconToUse });
+                // ALL UNSELECTED MARKERS ARE GREEN
+                const m = L.marker([p.lat, p.lon], { icon: greenIcon });
                 m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
                 placesLayer.addLayer(m);
             });
@@ -623,9 +544,10 @@ function updateCrowdDisplay() {
         baseCrowd = 0; 
     }
 
+    // UPDATED MODIFIERS
     let weatherMod = 1.0;
-    if (weatherState === "Sunny") weatherMod = 1.2; 
-    if (weatherState === "Rainy") weatherMod = 0.8; 
+    if (weatherState === "Cloudy") weatherMod = 0.8; 
+    if (weatherState === "Rainy") weatherMod = 0.5; 
     
     let eventMod = 1 + (currentEventsValue * 0.05);
 
