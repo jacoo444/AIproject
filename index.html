@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Smart Guide - Weather Control</title>
+<title>Barcelona Smart Guide - Refined</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -12,13 +12,22 @@
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; }
 
-    /* --- CUSTOM CLUSTER COLORS (ALL BLUE) --- */
+    /* --- CUSTOM SMALLER CLUSTERS --- */
     .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
         background-color: rgba(41, 128, 185, 0.4);
     }
     .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
         background-color: rgba(41, 128, 185, 0.8);
-        color: white; font-weight: bold; border-radius: 50%;
+        color: white; 
+        font-weight: bold; 
+        border-radius: 50%;
+        /* Force smaller size */
+        width: 30px !important;
+        height: 30px !important;
+        margin-left: 5px !important;
+        margin-top: 5px !important;
+        line-height: 30px !important;
+        font-size: 10px !important;
     }
     /* ---------------------------------------- */
 
@@ -44,15 +53,21 @@
     }
     .gps-btn:hover { background: #f0f8ff; color: #0078d7; }
 
+    /* Fixed Search Box Radius */
     .search-box {
-        background: white; padding: 5px; border-radius: 8px;
+        background: white; padding: 0; border-radius: 8px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2); width: 250px;
+        overflow: hidden; /* This keeps the input inside the rounded corners */
+        display: flex;
     }
-    .search-box input { width: 100%; border: none; outline: none; padding: 8px; font-size: 14px; }
+    .search-box input { 
+        width: 100%; border: none; outline: none; padding: 12px; font-size: 14px; 
+    }
 
     #search-results {
         list-style: none; padding: 0; margin: 0;
         max-height: 200px; overflow-y: auto; display: none; border-top: 1px solid #eee;
+        position: absolute; top: 45px; background: white; width: 250px; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     #search-results li {
         padding: 10px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px;
@@ -97,6 +112,16 @@
         width: 100px;
         text-align: center;
     }
+
+    /* Clear Button */
+    .clear-btn {
+        cursor: pointer;
+        color: #999;
+        font-size: 18px;
+        margin-left: 10px;
+        vertical-align: middle;
+    }
+    .clear-btn:hover { color: #c0392b; }
 </style>
 </head>
 
@@ -125,7 +150,10 @@
     </div>
     
     <div id="result-content" style="display:none;">
-        <h3 class="highlight" id="nearest-name" style="margin:0; margin-bottom:5px;">--</h3>
+        <div style="display:flex; justify-content:center; align-items:center;">
+            <h3 class="highlight" id="nearest-name" style="margin:0;">--</h3>
+            <span class="clear-btn" onclick="clearSelection()" title="Clear Selection">✖</span>
+        </div>
         
         <div class="data-grid">
             <div class="data-item">
@@ -171,10 +199,20 @@ let map;
 let places = [];        
 let selectionLayer = L.layerGroup(); 
 let gpsLayer = L.layerGroup();
-let markersCluster = L.markerClusterGroup(); 
+let markersCluster; 
 let userRealLocation = null; 
 let fuse; 
-let currentSelectedPlace = null; // Store current place to recalculate crowd on weather change
+let currentSelectedPlace = null; 
+
+// CUSTOM SMALLER ICON (50% size)
+const smallBlueIcon = L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [12, 20],      // 50% smaller (default is 25, 41)
+    iconAnchor: [6, 20],     // Adjusted anchor
+    popupAnchor: [1, -34],
+    shadowSize: [20, 20]     // Smaller shadow
+});
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
@@ -203,6 +241,11 @@ function initMap() {
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; CARTO', maxZoom: 20
     }).addTo(map);
+
+    // Initialize Cluster with smaller options if possible, mainly handled by CSS now
+    markersCluster = L.markerClusterGroup({
+        maxClusterRadius: 40 // Tighter grouping
+    });
 
     map.addLayer(markersCluster);
     selectionLayer.addTo(map);
@@ -239,19 +282,26 @@ function fetchCSV() {
         places = lines.map(l => {
             const c = l.split(",");
             if (c.length < 5) return null; 
+            
+            // Create the marker object with SMALL ICON
+            const m = L.marker([parseFloat(c[1]), parseFloat(c[2])], { icon: smallBlueIcon });
+            
+            // Note: We need a way to reference this specific marker later if we want to zoom to it
+            m.on('click', () => handleLocationInput(L.latLng(parseFloat(c[1]), parseFloat(c[2]))));
+            
             return {
                 name: c[0].trim(),
                 lat: parseFloat(c[1]),
                 lon: parseFloat(c[2]),
                 crowd: parseFloat(c[3]) || 0, 
-                events: parseFloat(c[4]) || 0
+                events: parseFloat(c[4]) || 0,
+                markerObj: m // Store reference
             };
         }).filter(x => x && !isNaN(x.lat));
         
+        // Add all markers to cluster
         places.forEach(p => {
-            const m = L.marker([p.lat, p.lon]);
-            m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
-            markersCluster.addLayer(m);
+            markersCluster.addLayer(p.markerObj);
         });
 
         fuse = new Fuse(places, { keys: ['name'], threshold: 0.4 });
@@ -275,8 +325,10 @@ searchInput.addEventListener('keyup', function() {
                 searchInput.value = ""; 
                 resultsList.style.display = 'none';
                 const latlng = L.latLng(p.lat, p.lon);
-                map.setView(latlng, 18); 
-                handleLocationInput(latlng);       
+                // Reveal the marker if it's clustered
+                markersCluster.zoomToShowLayer(p.markerObj, function() {
+                     handleLocationInput(latlng);
+                });    
             };
             resultsList.appendChild(li);
         });
@@ -336,9 +388,21 @@ function handleLocationInput(latlng) {
             document.getElementById("user-distance").innerText = "--";
         }
 
-        // Calculate Crowd (Refactored to separate function)
         updateCrowdDisplay(nearest);
     }
+}
+
+function clearSelection() {
+    selectionLayer.clearLayers();
+    currentSelectedPlace = null;
+    document.getElementById("result-content").style.display = "none";
+    document.getElementById("instruction").style.display = "block";
+    
+    // Reset inputs
+    document.getElementById("distance-info").innerText = "--";
+    document.getElementById("user-distance").innerText = "--";
+    document.getElementById("crowd-score").innerText = "--";
+    document.getElementById("crowd-status").innerText = "--";
 }
 
 function updateCrowdDisplay(place) {
