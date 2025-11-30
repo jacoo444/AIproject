@@ -91,7 +91,7 @@
     #search-results li:last-child { border-radius: 0 0 15px 15px; border-bottom: none; }
     #search-results li:hover { background-color: #f0f8ff; color: #0078d7; }
 
-    /* --- DASHBOARD --- */
+    /* --- DASHBOARD CONTAINER --- */
     .dashboard-container {
         padding: 15px;
         display: flex;
@@ -103,7 +103,34 @@
         z-index: 1001;
     }
 
-    .card {
+    /* --- NEW UNIFIED CARD (Holds Info, Weather, Events) --- */
+    .card-unified {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        display: flex;
+        flex-direction: row; /* Side by side sections */
+        flex: 4; /* Takes up 4 parts of space */
+        height: 180px; 
+        box-sizing: border-box;
+        overflow: hidden; /* Contains children border radius */
+    }
+
+    /* Inner Sections of Unified Card */
+    .unified-section {
+        padding: 15px;
+        display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+        height: 100%;
+        box-sizing: border-box;
+        position: relative;
+    }
+    
+    .section-info { flex: 2; border-right: 1px solid #eee; min-width: 300px; }
+    .section-weather { flex: 1; border-right: 1px solid #eee; min-width: 150px; }
+    .section-events { flex: 1; min-width: 150px; }
+
+    /* --- SEPARATE CROWD CARD --- */
+    .card-crowd {
         background: white;
         border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
@@ -112,10 +139,9 @@
         display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
         height: 180px; 
         box-sizing: border-box;
+        flex: 1; /* Takes 1 part of space */
+        min-width: 180px;
     }
-
-    .card-info { flex: 2; position: relative; min-width: 300px; } 
-    .card-small { flex: 1; max-width: 180px; min-width: 140px; } 
 
     .card-content-wrapper {
         flex-grow: 1;
@@ -143,13 +169,13 @@
     .close-btn {
         position: absolute; 
         top: 10px; 
-        left: 10px; /* Top Left Corner */
+        left: 10px; 
         width: 32px; 
         height: 32px;
-        background: #f0f2f5; /* Light circle bg */
-        border-radius: 50%; /* Circle */
+        background: #f0f2f5; 
+        border-radius: 50%; 
         display: flex; align-items: center; justify-content: center;
-        font-size: 24px; /* Bigger X */
+        font-size: 24px; 
         color: #777; 
         cursor: pointer; 
         line-height: 1; 
@@ -159,7 +185,7 @@
     }
     .close-btn:hover { background: #e4e6eb; color: #c0392b; }
 
-    /* --- RESULT CARD SPLIT LAYOUT (60/40) --- */
+    /* --- RESULT LAYOUT --- */
     .result-top-half {
         height: 60%;
         width: 100%;
@@ -212,7 +238,7 @@
     .evt-btn:hover { background: #eef; color: #0078d7; border-color: #aaf; }
     
     .evt-display {
-        font-size: 3.5em; /* Matching the big numbers */
+        font-size: 3.5em; 
         font-weight: bold; color: #8e44ad;
         min-width: 40px; text-align: center; line-height: 1; margin-bottom: 5px;
     }
@@ -224,9 +250,12 @@
     .status-neutral { color: #ccc; }
     .status-purple { color: #8e44ad; }
 
-    @media (max-width: 850px) {
+    @media (max-width: 900px) {
         .dashboard-container { flex-direction: column; height: auto;}
-        .card { width: 100%; max-width: none; box-sizing: border-box; margin-bottom: 10px;}
+        .card-unified { flex-direction: column; height: auto; }
+        .unified-section { border-right: none; border-bottom: 1px solid #eee; padding: 15px; width: 100%; min-height: 150px;}
+        .unified-section:last-child { border-bottom: none; }
+        .card-crowd { width: 100%; max-width: none; margin-top: 10px; }
         #map-wrapper { min-height: 40vh; }
         .result-bottom-half { flex-direction: column; gap: 5px; }
         .info-left-tags { border-right: none; border-bottom: 1px solid #eee; padding-bottom: 5px; width: 100%; padding-right:0; }
@@ -258,80 +287,75 @@
 
 <div class="dashboard-container">
     
-    <div class="card card-info">
-        <div id="instruction" style="color:#777; height:100%; display:flex; flex-direction:column; justify-content:center;">
-            <span id="gps-status" style="font-size:0.9em; display:block; margin-bottom:5px;">Locating you...</span>
-            <strong>Select an attraction on the map</strong>
-        </div>
-
-        <div id="result-content" style="display:none; width: 100%; height:100%; flex-direction:column;">
-            
-            <div class="result-top-half">
-                <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
-                
-                <div class="label">Selected Destination</div>
-                <div style="flex-grow:1; display:flex; align-items:center; justify-content:center;">
-                    <div class="highlight" id="nearest-name">--</div>
-                </div>
-            </div>
-            
-            <div class="result-bottom-half">
-                <div class="info-left-tags">
-                    <span class="tag">Attribute 1</span>
-                    <span class="tag">Attribute 2</span>
-                    <span class="tag">Attribute 3</span>
-                </div>
-
-                <div class="info-right-dist">
-                    <div class="dist-subitem">
-                        <small style="color:#aaa;">From Selection</small><br>
-                        <span id="distance-info" style="font-weight:bold;">--</span>
-                    </div>
-                    <div class="dist-subitem">
-                        <small style="color:#aaa;">From You</small><br>
-                        <span id="user-distance" class="blue-highlight" style="font-weight:bold;">--</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card card-small">
-        <span class="label" id="lbl-weather" style="display:none;">Weather</span>
+    <div class="card-unified">
         
-        <div class="card-content-wrapper">
-            <div id="weather-placeholder" class="placeholder-value">--</div>
-
-            <div id="weather-content" style="display:none; width: 100%;">
-                <span id="weather-icon" style="font-size: 2.5em; margin: 5px 0;">☁️</span>
-                <select id="weather-select">
-                    <option value="Cloudy" selected>Cloudy</option>
-                    <option value="Sunny">Sunny</option>
-                    <option value="Rainy">Rainy</option>
-                </select>
+        <div class="unified-section section-info">
+            <div id="instruction" style="color:#777; height:100%; display:flex; flex-direction:column; justify-content:center; width:100%; text-align:center;">
+                <span id="gps-status" style="font-size:0.9em; display:block; margin-bottom:5px;">Locating you...</span>
+                <strong>Select an attraction on the map</strong>
             </div>
-        </div>
-    </div>
 
-    <div class="card card-small">
-        <span class="label" id="lbl-events" style="display:none;">Events Nearby</span>
-        
-        <div class="card-content-wrapper">
-            <div id="events-placeholder" class="placeholder-value">--</div>
-
-            <div id="events-content" style="display:none; width: 100%; text-align:center;">
-                <div class="events-wrapper">
-                    <div id="events-display" class="evt-display">0</div>
-                    <div class="events-btn-row">
-                        <button class="evt-btn" onclick="modifyEvents(-1)">-</button>
-                        <button class="evt-btn" onclick="modifyEvents(1)">+</button>
+            <div id="result-content" style="display:none; width: 100%; height:100%; flex-direction:column;">
+                <div class="result-top-half">
+                    <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
+                    <div class="label">Selected Destination</div>
+                    <div style="flex-grow:1; display:flex; align-items:center; justify-content:center;">
+                        <div class="highlight" id="nearest-name">--</div>
+                    </div>
+                </div>
+                <div class="result-bottom-half">
+                    <div class="info-left-tags">
+                        <span class="tag">Attribute 1</span>
+                        <span class="tag">Attribute 2</span>
+                        <span class="tag">Attribute 3</span>
+                    </div>
+                    <div class="info-right-dist">
+                        <div class="dist-subitem">
+                            <small style="color:#aaa;">From Selection</small><br>
+                            <span id="distance-info" style="font-weight:bold;">--</span>
+                        </div>
+                        <div class="dist-subitem">
+                            <small style="color:#aaa;">From You</small><br>
+                            <span id="user-distance" class="blue-highlight" style="font-weight:bold;">--</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="card card-small">
+        <div class="unified-section section-weather">
+            <span class="label" id="lbl-weather" style="display:none;">Current Weather</span>
+            <div class="card-content-wrapper">
+                <div id="weather-placeholder" class="placeholder-value">--</div>
+                <div id="weather-content" style="display:none; width: 100%;">
+                    <span id="weather-icon" style="font-size: 2.5em; margin: 5px 0;">☁️</span>
+                    <select id="weather-select">
+                        <option value="Cloudy" selected>Cloudy</option>
+                        <option value="Sunny">Sunny</option>
+                        <option value="Rainy">Rainy</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="unified-section section-events">
+            <span class="label" id="lbl-events" style="display:none;">Events Nearby</span>
+            <div class="card-content-wrapper">
+                <div id="events-placeholder" class="placeholder-value">--</div>
+                <div id="events-content" style="display:none; width: 100%; text-align:center;">
+                    <div class="events-wrapper">
+                        <div id="events-display" class="evt-display">0</div>
+                        <div class="events-btn-row">
+                            <button class="evt-btn" onclick="modifyEvents(-1)">-</button>
+                            <button class="evt-btn" onclick="modifyEvents(1)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <div class="card card-crowd">
         <span class="label" id="lbl-crowd" style="display:none;">Expected Crowd</span>
         <div class="card-content-wrapper">
             <span id="crowd-score" class="placeholder-value">--</span>
@@ -618,7 +642,7 @@ function updateCrowdDisplay() {
     } else {
         crowdEl.classList.add("status-red");
         statusEl.classList.add("status-red");
-        statusEl.innerText = "High Congestion";
+        statusEl.innerText = "High";
     }
 }
 </script>
