@@ -12,22 +12,19 @@
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
 
-    /* --- MARKER DOT STYLES (RINGS) --- */
+    /* --- MARKER DOT STYLES (FILLED RINGS) --- */
     .dot-marker {
         border-radius: 50%;
-        border: 2px solid white;
+        border: 2px solid white; /* White border creates the 'pin head' look */
         box-shadow: 0 1px 3px rgba(0,0,0,0.4);
         box-sizing: border-box;
-        background-clip: padding-box; /* Helps render ring look */
+        opacity: 0.6; /* 60% Opacity for unselected */
     }
     .dot-green {
-        background-color: transparent;
-        border: 3px solid #27ae60; /* Green Ring */
-        opacity: 0.6; /* 50-60% Opacity */
+        background-color: #27ae60; /* Solid Green Fill */
     }
     .dot-red {
-        background-color: transparent;
-        border: 3px solid #c0392b; /* Red Ring */
+        background-color: #c0392b; /* Solid Red Fill */
         opacity: 1; /* Selected is fully visible */
         z-index: 1000 !important; 
     }
@@ -364,9 +361,9 @@
             </div>
 
             <div class="unified-section section-weather">
-                <span class="label">Current Weather</span>
+                <span class="label" id="lbl-weather">Current Weather</span>
                 <div class="card-content-wrapper">
-                    <div style="width: 100%; text-align: center;">
+                    <div id="weather-content" style="width: 100%; text-align: center;">
                         <span id="weather-icon" style="font-size: 2.5em; margin: 5px 0;">☁️</span>
                         <select id="weather-select">
                             <option value="Cloudy" selected>Cloudy</option>
@@ -378,9 +375,9 @@
             </div>
 
             <div class="unified-section section-events">
-                <span class="label">Events Nearby</span>
+                <span class="label" id="lbl-events">Events Nearby</span>
                 <div class="card-content-wrapper">
-                    <div style="width: 100%; text-align:center;">
+                    <div id="events-content" style="width: 100%; text-align:center;">
                         <div class="events-wrapper">
                             <div id="events-display" class="evt-display">0</div>
                             <div class="events-btn-row">
@@ -419,7 +416,7 @@ let fuse;
 let currentSelectedPlace = null; 
 let currentEventsValue = 0; 
 
-// --- UPDATED DOT ICONS (Green Ring) ---
+// --- UPDATED DOT ICONS (FILLED GREEN CIRCLES) ---
 const greenIcon = L.divIcon({
     className: 'dot-marker dot-green',
     iconSize: [16, 16],
@@ -557,14 +554,13 @@ function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
     
-    // Switch to Empty State
     document.getElementById("unified-active-state").style.display = "none";
     document.getElementById("unified-empty-state").style.display = "flex";
     
-    // Hide Crowd Label
+    document.getElementById("weather-content").style.display = "none";
+    document.getElementById("events-content").style.display = "none";
     document.getElementById("lbl-crowd").style.display = "none";
 
-    // Reset Crowd Values
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
     crowdEl.innerText = "--";
@@ -589,9 +585,11 @@ function handleLocationInput(latlng) {
         currentSelectedPlace = nearest;
         currentEventsValue = Math.round(nearest.events); 
         
-        // 1. Show UI Containers
+        // 1. Show UI
         document.getElementById("unified-empty-state").style.display = "none";
         document.getElementById("unified-active-state").style.display = "flex";
+        document.getElementById("weather-content").style.display = "block";
+        document.getElementById("events-content").style.display = "block";
         document.getElementById("lbl-crowd").style.display = "block";
 
         // 2. Map Visuals
@@ -622,7 +620,6 @@ function handleLocationInput(latlng) {
             document.getElementById("user-distance").innerText = "--";
         }
 
-        // 4. Force Update Calculation
         updateCrowdDisplay();
     }
 }
@@ -648,7 +645,6 @@ function updateCrowdDisplay() {
     
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
-    
     crowdEl.innerText = estimatedCrowd;
     crowdEl.className = "big-score"; 
     
