@@ -3,111 +3,128 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Smart Guide - Weather Control</title>
+<title>Barcelona Smart Tourist Guide</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
 <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
 
-    /* --- CUSTOM CLUSTER COLORS (ALL BLUE) --- */
-    .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
-        background-color: rgba(41, 128, 185, 0.4);
-    }
+    /* --- CLUSTER COLORS --- */
+    .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background-color: rgba(41, 128, 185, 0.4); }
     .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
-        background-color: rgba(41, 128, 185, 0.8);
-        color: white; font-weight: bold; border-radius: 50%;
+        background-color: rgba(41, 128, 185, 0.8); color: white; font-weight: bold; border-radius: 50%;
     }
-    /* ---------------------------------------- */
 
     header { 
         background: #2c3e50; color: #fff; padding: 15px; 
         text-align: center; font-weight: bold; letter-spacing: 1px;
+        flex-shrink: 0;
     }
 
-    #map-container { position: relative; height: 60vh; width: 100%; }
+    /* --- MAP CONTAINER (Rounded & Floating) --- */
+    #map-wrapper {
+        padding: 15px 15px 0 15px; /* Gap from sides and top */
+        flex-grow: 1;
+        position: relative;
+        min-height: 400px;
+    }
+
+    #map-container { 
+        height: 100%; width: 100%; 
+        border-radius: 15px; /* ROUND CORNERS */
+        overflow: hidden; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        position: relative;
+    }
     #map { height: 100%; width: 100%; z-index: 1; }
 
+    /* --- CONTROLS OVER MAP --- */
     .controls-wrapper {
         position: absolute; top: 20px; right: 20px; z-index: 1000;
         display: flex; gap: 10px; align-items: flex-start;
     }
-
     .gps-btn {
-        background: white; border: none; padding: 10px; 
-        border-radius: 8px; cursor: pointer;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        font-size: 18px; height: 42px; width: 42px;
+        background: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 18px; height: 42px; width: 42px;
         display: flex; align-items: center; justify-content: center;
     }
     .gps-btn:hover { background: #f0f8ff; color: #0078d7; }
 
     .search-box {
         background: white; padding: 5px; border-radius: 8px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2); width: 250px;
-        /* FIX: Prevents input from bleeding over rounded corners */
-        overflow: hidden; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2); width: 250px; overflow: hidden; 
     }
     .search-box input { width: 100%; border: none; outline: none; padding: 8px; font-size: 14px; box-sizing: border-box; }
-
     #search-results {
-        list-style: none; padding: 0; margin: 0;
-        max-height: 200px; overflow-y: auto; display: none; border-top: 1px solid #eee;
+        list-style: none; padding: 0; margin: 0; max-height: 200px; overflow-y: auto; display: none; border-top: 1px solid #eee;
     }
-    #search-results li {
-        padding: 10px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px;
-    }
+    #search-results li { padding: 10px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px; }
     #search-results li:hover { background-color: #f0f8ff; color: #0078d7; }
 
-    /* Info Panel */
-    .info-panel {
-        max-width: 800px; margin: 0 auto; padding: 15px;
-        background: white; border-radius: 0 0 8px 8px; 
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.05); text-align: center;
-        position: relative; /* Needed for absolute positioning of close button */
+    /* --- DASHBOARD (Bottom Cards) --- */
+    .dashboard-container {
+        padding: 15px;
+        display: flex;
+        gap: 15px; /* Gap between cards */
+        justify-content: center;
+        align-items: stretch;
+        flex-shrink: 0;
     }
 
-    /* Close Button Style */
+    .card {
+        background: white;
+        border-radius: 15px; /* ROUND CORNERS */
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        padding: 15px;
+        text-align: center;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+
+    /* Card Specifics */
+    .card-weather { flex: 1; max-width: 200px; }
+    .card-info { flex: 2; position: relative; min-width: 250px; }
+    .card-crowd { flex: 1; max-width: 200px; }
+
+    /* Typography & UI */
+    .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:5px;}
+    .value { font-weight: bold; font-size: 1.1em; color: #333; }
+    .highlight { color: #2c3e50; font-size: 1.3em; font-weight: bold; margin: 5px 0; }
+    .blue-highlight { color: #0078d7; }
+
     .close-btn {
-        position: absolute; top: 10px; right: 20px;
-        font-size: 24px; color: #aaa; cursor: pointer;
-        line-height: 1; font-weight: bold;
-        transition: color 0.2s;
+        position: absolute; top: 10px; right: 15px;
+        font-size: 20px; color: #aaa; cursor: pointer; line-height: 1;
     }
     .close-btn:hover { color: #c0392b; }
 
-    .data-grid {
-        display: grid; grid-template-columns: 1fr 1.2fr 1fr; 
-        gap: 10px;
-        margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; align-items: center;
+    /* Weather Select */
+    #weather-select {
+        border: 1px solid #ddd; border-radius: 6px; padding: 5px;
+        font-family: inherit; color: #333; font-weight: bold; cursor: pointer;
+        width: 100%; text-align: center; margin-top: 5px;
     }
-    .data-item { padding: 5px; }
-    .data-item:nth-child(2) { border-left: 1px solid #eee; border-right: 1px solid #eee; }
 
-    .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:4px;}
-    .value { font-weight: bold; font-size: 1.1em; color: #333; }
-    
-    .highlight { color: #2c3e50; font-size: 1.4em; }
-    .blue-highlight { color: #0078d7; }
-    
+    /* Crowd Colors */
     .status-green { color: #27ae60; }
     .status-orange { color: #f39c12; }
     .status-red { color: #c0392b; }
+    .status-neutral { color: #ccc; }
 
-    /* Dropdown Styling */
-    #weather-select {
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 5px;
-        font-family: inherit;
-        color: #333;
-        font-weight: bold;
-        cursor: pointer;
-        margin-top: 5px;
-        width: 100px;
-        text-align: center;
+    /* Distances Grid inside Middle Card */
+    .dist-grid {
+        display: flex; gap: 20px; justify-content: center; margin-top: 10px; width: 100%;
+        border-top: 1px solid #eee; padding-top: 10px;
+    }
+    .dist-item { flex: 1; }
+
+    /* Mobile Responsive */
+    @media (max-width: 700px) {
+        .dashboard-container { flex-direction: column; }
+        .card { width: 100%; max-width: none; box-sizing: border-box;}
+        #map-wrapper { min-height: 50vh; }
     }
 </style>
 </head>
@@ -115,63 +132,65 @@
 <body>
 
 <header>
-    📍 Barcelona Smart Guide
+    📍 Barcelona Smart Tourist Guide
 </header>
 
-<div id="map-container">
-    <div id="map"></div>
-    
-    <div class="controls-wrapper">
-        <button class="gps-btn" onclick="triggerGPS()" title="Recenter on Me">📍</button>
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search attractions...">
-            <ul id="search-results"></ul>
+<div id="map-wrapper">
+    <div id="map-container">
+        <div id="map"></div>
+        
+        <div class="controls-wrapper">
+            <button class="gps-btn" onclick="triggerGPS()" title="Recenter on Me">📍</button>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search attractions...">
+                <ul id="search-results"></ul>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="info-panel">
-    <div id="instruction" style="color:#777;">
-        <span id="gps-status">Locating you...</span><br>
-        <small>Select an attraction to see details.</small>
-    </div>
+<div class="dashboard-container">
     
-    <div id="result-content" style="display:none;">
-        <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
+    <div class="card card-weather">
+        <span class="label">Weather Conditions</span>
+        <span id="weather-icon" style="font-size: 2.5em; margin: 5px 0;">☁️</span>
+        <select id="weather-select">
+            <option value="Cloudy" selected>Cloudy</option>
+            <option value="Sunny">Sunny</option>
+            <option value="Rainy">Rainy</option>
+        </select>
+    </div>
 
-        <h3 class="highlight" id="nearest-name" style="margin:0; margin-bottom:5px;">--</h3>
-        
-        <div class="data-grid">
-            <div class="data-item">
-                <span class="label">Weather</span>
-                <span id="weather-icon" style="font-size:1.8em;">☁️</span><br>
-                <select id="weather-select">
-                    <option value="Cloudy" selected>Cloudy</option>
-                    <option value="Sunny">Sunny</option>
-                    <option value="Rainy">Rainy</option>
-                </select>
-            </div>
+    <div class="card card-info">
+        <div id="instruction" style="color:#777;">
+            <span id="gps-status" style="font-size:0.9em; display:block; margin-bottom:5px;">Locating you...</span>
+            <strong>Select an attraction on the map</strong>
+        </div>
 
-            <div class="data-item">
-                <span class="label">Distance Info (Straight-Line)</span>
-                <div style="margin-bottom:8px;">
-                    <small style="color:#aaa;">From Selection:</small><br> 
+        <div id="result-content" style="display:none; width: 100%;">
+            <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
+            <div class="label">Selected Destination</div>
+            <div class="highlight" id="nearest-name">--</div>
+            
+            <div class="dist-grid">
+                <div class="dist-item">
+                    <small style="color:#aaa;">Straight Line</small><br>
                     <span id="distance-info" style="font-weight:bold;">--</span>
                 </div>
-                <div>
-                    <small style="color:#aaa;">From You:</small><br> 
+                <div class="dist-item" style="border-left:1px solid #eee;">
+                    <small style="color:#aaa;">From You</small><br>
                     <span id="user-distance" class="blue-highlight" style="font-weight:bold;">--</span>
                 </div>
             </div>
-            
-            <div class="data-item">
-                <span class="label">Expected Crowd</span>
-                <span id="crowd-score" style="font-size:1.6em; font-weight:bold;">--</span>
-                <span style="font-size:0.8em; color:#aaa;">/ 100</span><br>
-                <span id="crowd-status" style="font-weight:bold; font-size:0.8em;">--</span>
-            </div>
         </div>
     </div>
+
+    <div class="card card-crowd">
+        <span class="label">Expected Crowd</span>
+        <span id="crowd-score" class="status-neutral" style="font-size:2.5em; font-weight:bold; margin: 5px 0;">--</span>
+        <span id="crowd-status" style="font-weight:bold; font-size:0.9em; color:#999;">Select Place</span>
+    </div>
+
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -190,31 +209,22 @@ let userRealLocation = null;
 let fuse; 
 let currentSelectedPlace = null; 
 
-// --- UPDATED: Defined Custom Icons (70% size) ---
-// Original size is [25, 41], anchor [12, 41]
-// New Size is approx [18, 29], anchor [9, 29]
+// --- Custom Icons (70% size) ---
 const smallIconSize = [18, 29];
 const smallIconAnchor = [9, 29];
-const smallShadowSize = [29, 29]; // approximated
+const smallShadowSize = [29, 29];
 
 const blueIcon = L.icon({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconSize: smallIconSize,
-    iconAnchor: smallIconAnchor,
-    popupAnchor: [1, -34],
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    shadowSize: smallShadowSize
+    iconSize: smallIconSize, iconAnchor: smallIconAnchor, popupAnchor: [1, -34],
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', shadowSize: smallShadowSize
 });
 
 const redIcon = L.icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-    iconSize: smallIconSize,
-    iconAnchor: smallIconAnchor,
-    popupAnchor: [1, -34],
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    shadowSize: smallShadowSize
+    iconSize: smallIconSize, iconAnchor: smallIconAnchor, popupAnchor: [1, -34],
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png', shadowSize: smallShadowSize
 });
-// ------------------------------------------------
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
@@ -266,12 +276,9 @@ function triggerGPS() {
             map.setView(userRealLocation, 15);
             document.getElementById("gps-status").innerText = "GPS Active 📍";
             
-            // If a place is already selected, update the "From You" distance
             if(currentSelectedPlace) {
                const distFromUser = map.distance(userRealLocation, [currentSelectedPlace.lat, currentSelectedPlace.lon]);
-               const distString = distFromUser > 1000 
-                    ? (distFromUser/1000).toFixed(1) + " km" 
-                    : Math.round(distFromUser) + " m";
+               const distString = distFromUser > 1000 ? (distFromUser/1000).toFixed(1) + " km" : Math.round(distFromUser) + " m";
                document.getElementById("user-distance").innerText = distString;
             }
         },
@@ -289,16 +296,12 @@ function fetchCSV() {
             const c = l.split(",");
             if (c.length < 5) return null; 
             return {
-                name: c[0].trim(),
-                lat: parseFloat(c[1]),
-                lon: parseFloat(c[2]),
-                crowd: parseFloat(c[3]) || 0, 
-                events: parseFloat(c[4]) || 0
+                name: c[0].trim(), lat: parseFloat(c[1]), lon: parseFloat(c[2]),
+                crowd: parseFloat(c[3]) || 0, events: parseFloat(c[4]) || 0
             };
         }).filter(x => x && !isNaN(x.lat));
         
         places.forEach(p => {
-            // Apply the new smaller blue icon here
             const m = L.marker([p.lat, p.lon], { icon: blueIcon });
             m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
             markersCluster.addLayer(m);
@@ -333,24 +336,26 @@ searchInput.addEventListener('keyup', function() {
     } else { resultsList.style.display = 'none'; }
 });
 
-// NEW: Clear Selection Function
 function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
     
-    // Hide results, show instruction
+    // UI Resets
     document.getElementById("result-content").style.display = "none";
     document.getElementById("instruction").style.display = "block";
     
-    // Optional: Reset values visually
-    document.getElementById("distance-info").innerText = "--";
-    document.getElementById("user-distance").innerText = "--";
+    // Reset Crowd Card
+    const crowdEl = document.getElementById("crowd-score");
+    const statusEl = document.getElementById("crowd-status");
+    crowdEl.innerText = "--";
+    crowdEl.className = "status-neutral";
+    statusEl.innerText = "Select Place";
+    statusEl.className = "";
+    statusEl.style.color = "#999";
 }
 
 function handleLocationInput(latlng) {
     selectionLayer.clearLayers(); 
-
-    // Apply the new smaller red icon here
     L.marker(latlng, {icon: redIcon}).addTo(selectionLayer);
 
     let nearest = null;
@@ -362,7 +367,6 @@ function handleLocationInput(latlng) {
     });
 
     if (nearest) {
-        // Update Global Selection
         currentSelectedPlace = nearest;
 
         // Visuals
@@ -397,7 +401,7 @@ function handleLocationInput(latlng) {
             document.getElementById("user-distance").innerText = "--";
         }
 
-        // Calculate Crowd (Refactored to separate function)
+        // Calculate Crowd
         updateCrowdDisplay(nearest);
     }
 }
@@ -417,6 +421,8 @@ function updateCrowdDisplay(place) {
     crowdEl.innerText = estimatedCrowd;
     crowdEl.className = ""; statusEl.className = "";
     
+    statusEl.style.color = ""; // reset inline color
+
     if (estimatedCrowd < 40) {
         crowdEl.classList.add("status-green");
         statusEl.classList.add("status-green");
@@ -431,7 +437,7 @@ function updateCrowdDisplay(place) {
         statusEl.innerText = "High Congestion";
     }
 }
-</script> 
+</script>
 
 </body>
 </html>
