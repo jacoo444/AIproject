@@ -3,30 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Smart Guide - Walking Fix</title>
+<title>Barcelona Smart Guide - Weather Control</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; }
 
     /* --- CUSTOM CLUSTER COLORS (ALL BLUE) --- */
-    .marker-cluster-small,
-    .marker-cluster-medium,
-    .marker-cluster-large {
+    .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
         background-color: rgba(41, 128, 185, 0.4);
     }
-
-    .marker-cluster-small div,
-    .marker-cluster-medium div,
-    .marker-cluster-large div {
+    .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
         background-color: rgba(41, 128, 185, 0.8);
-        color: white;
-        font-weight: bold;
-        border-radius: 50%;
+        color: white; font-weight: bold; border-radius: 50%;
     }
     /* ---------------------------------------- */
 
@@ -92,8 +84,19 @@
     .status-orange { color: #f39c12; }
     .status-red { color: #c0392b; }
 
-    /* Hide the default Routing Machine white box text */
-    .leaflet-routing-container { display: none !important; }
+    /* Dropdown Styling */
+    #weather-select {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 5px;
+        font-family: inherit;
+        color: #333;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 5px;
+        width: 100px;
+        text-align: center;
+    }
 </style>
 </head>
 
@@ -118,7 +121,7 @@
 <div class="info-panel">
     <div id="instruction" style="color:#777;">
         <span id="gps-status">Locating you...</span><br>
-        <small>Select an attraction to calculate walking path.</small>
+        <small>Select an attraction to see details.</small>
     </div>
     
     <div id="result-content" style="display:none;">
@@ -126,19 +129,23 @@
         
         <div class="data-grid">
             <div class="data-item">
-                <span class="label">Current Weather</span>
-                <span id="weather-icon" style="font-size:1.8em;">--</span><br>
-                <span id="weather-text" class="value" style="font-size:0.9em;">--</span>
+                <span class="label">Weather</span>
+                <span id="weather-icon" style="font-size:1.8em;">☁️</span><br>
+                <select id="weather-select">
+                    <option value="Cloudy" selected>Cloudy</option>
+                    <option value="Sunny">Sunny</option>
+                    <option value="Rainy">Rainy</option>
+                </select>
             </div>
 
             <div class="data-item">
-                <span class="label">Distance Info</span>
+                <span class="label">Distance Info (Straight-Line)</span>
                 <div style="margin-bottom:8px;">
-                    <small style="color:#aaa;">Distance from Selection:</small><br> 
-                    <span id="distance-info" style="font-weight:bold;">Calculating...</span>
+                    <small style="color:#aaa;">From Selection:</small><br> 
+                    <span id="distance-info" style="font-weight:bold;">--</span>
                 </div>
                 <div>
-                    <small style="color:#aaa;">From You (Straight Line):</small><br> 
+                    <small style="color:#aaa;">From You:</small><br> 
                     <span id="user-distance" class="blue-highlight" style="font-weight:bold;">--</span>
                 </div>
             </div>
@@ -155,7 +162,6 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
@@ -168,20 +174,28 @@ let gpsLayer = L.layerGroup();
 let markersCluster = L.markerClusterGroup(); 
 let userRealLocation = null; 
 let fuse; 
-let routingControl = null;
-
-let weatherState = "Sunny"; 
+let currentSelectedPlace = null; // Store current place to recalculate crowd on weather change
 
 document.addEventListener("DOMContentLoaded", () => {
-    generateWeather(); 
     initMap();
     fetchCSV();
     triggerGPS();
+    
+    // Listen for weather changes
+    document.getElementById("weather-select").addEventListener("change", function() {
+        updateWeatherIcon();
+        if(currentSelectedPlace) {
+            updateCrowdDisplay(currentSelectedPlace);
+        }
+    });
 });
 
-function generateWeather() {
-    const types = ["Sunny", "Cloudy", "Rainy"];
-    weatherState = types[Math.floor(Math.random() * types.length)];
+function updateWeatherIcon() {
+    const val = document.getElementById("weather-select").value;
+    let icon = "☁️";
+    if (val === "Sunny") icon = "☀️";
+    if (val === "Rainy") icon = "🌧️";
+    document.getElementById("weather-icon").innerText = icon;
 }
 
 function initMap() {
@@ -206,11 +220,9 @@ function triggerGPS() {
         (pos) => {
             userRealLocation = L.latLng(pos.coords.latitude, pos.coords.longitude);
             gpsLayer.clearLayers();
-            // Blue Dot (No popup)
             L.circleMarker(userRealLocation, {
                 radius: 8, fillColor: "#3388ff", color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.8
             }).addTo(gpsLayer); 
-            
             map.setView(userRealLocation, 15);
             document.getElementById("gps-status").innerText = "GPS Active 📍";
         },
@@ -273,10 +285,6 @@ searchInput.addEventListener('keyup', function() {
 
 function handleLocationInput(latlng) {
     selectionLayer.clearLayers(); 
-    if (routingControl) {
-        map.removeControl(routingControl);
-        routingControl = null;
-    }
 
     const redIcon = L.icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
@@ -293,34 +301,20 @@ function handleLocationInput(latlng) {
     });
 
     if (nearest) {
-        document.getElementById("distance-info").innerText = "Calculating...";
-        
-        if (minDistance > 10) {
-            routingControl = L.Routing.control({
-                waypoints: [
-                    L.latLng(latlng.lat, latlng.lng),
-                    L.latLng(nearest.lat, nearest.lon)
-                ],
-                // FORCE WALKING MODE (Ignore traffic rules)
-                router: new L.Routing.OSRMv1({
-                    serviceUrl: 'https://router.project-osrm.org/route/v1',
-                    profile: 'foot' // OSRM 'foot' profile allows walking against traffic
-                }),
-                routeWhileDragging: false,
-                draggableWaypoints: false,
-                fitSelectedRoutes: false, 
-                addWaypoints: false,
-                show: false, 
-                createMarker: function() { return null; }, 
-                lineOptions: { styles: [{color: '#e74c3c', opacity: 0.8, weight: 5, dashArray: '5, 10'}] }
-            }).on('routesfound', function(e) {
-                const d = e.routes[0].summary.totalDistance;
-                let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
-                document.getElementById("distance-info").innerText = dString;
-                document.getElementById("distance-info").style.color = "black";
-            }).on('routingerror', function() {
-                 document.getElementById("distance-info").innerText = "Path unavailable";
-            }).addTo(map);
+        // Update Global Selection
+        currentSelectedPlace = nearest;
+
+        // Visuals
+        if (minDistance > 5) {
+            let d = minDistance;
+            let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
+            
+            L.polyline([latlng, [nearest.lat, nearest.lon]], {
+                color: '#e74c3c', weight: 3, opacity: 0.7, dashArray: '10, 10'
+            }).addTo(selectionLayer);
+            
+            document.getElementById("distance-info").innerText = dString;
+            document.getElementById("distance-info").style.color = "black";
         } else {
             document.getElementById("distance-info").innerText = "0 m";
             document.getElementById("distance-info").style.color = "green";
@@ -331,50 +325,49 @@ function handleLocationInput(latlng) {
         document.getElementById("result-content").style.display = "block";
         document.getElementById("nearest-name").innerText = nearest.name;
 
-        // GPS Straight Line Distance
+        // GPS Distance
         if (userRealLocation) {
             const distFromUser = map.distance(userRealLocation, [nearest.lat, nearest.lon]);
-            let distString = distFromUser > 1000 
+            let distStringUser = distFromUser > 1000 
                 ? (distFromUser/1000).toFixed(1) + " km" 
                 : Math.round(distFromUser) + " m";
-            document.getElementById("user-distance").innerText = distString;
+            document.getElementById("user-distance").innerText = distStringUser;
         } else {
             document.getElementById("user-distance").innerText = "--";
         }
 
-        // Weather UI
-        let wIcon = "☀️";
-        if(weatherState === "Cloudy") wIcon = "☁️";
-        if(weatherState === "Rainy") wIcon = "🌧️";
-        document.getElementById("weather-icon").innerText = wIcon;
-        document.getElementById("weather-text").innerText = weatherState;
+        // Calculate Crowd (Refactored to separate function)
+        updateCrowdDisplay(nearest);
+    }
+}
 
-        // Crowd Calculation
-        let modifier = 1;
-        if (weatherState === "Sunny") modifier = 1.2; 
-        if (weatherState === "Rainy") modifier = 0.7; 
-        
-        let estimatedCrowd = Math.round((nearest.crowd + nearest.events) * modifier);
-        if (estimatedCrowd > 100) estimatedCrowd = 100;
-        
-        const crowdEl = document.getElementById("crowd-score");
-        const statusEl = document.getElementById("crowd-status");
-        crowdEl.innerText = estimatedCrowd;
-        crowdEl.className = ""; statusEl.className = "";
-        
-        if (estimatedCrowd < 40) {
-            crowdEl.classList.add("status-green");
-            statusEl.classList.add("status-green");
-            statusEl.innerText = "Low";
-        } else if (estimatedCrowd < 75) {
-            crowdEl.classList.add("status-orange");
-            statusEl.classList.add("status-orange");
-            statusEl.innerText = "Moderate";
-        } else {
-            crowdEl.classList.add("status-red");
-            statusEl.classList.add("status-red");
-            statusEl.innerText = "High Congestion";
-        }
+function updateCrowdDisplay(place) {
+    const weatherState = document.getElementById("weather-select").value;
+    
+    let modifier = 1;
+    if (weatherState === "Sunny") modifier = 1.2; 
+    if (weatherState === "Rainy") modifier = 0.7; 
+    
+    let estimatedCrowd = Math.round((place.crowd + place.events) * modifier);
+    if (estimatedCrowd > 100) estimatedCrowd = 100;
+    
+    const crowdEl = document.getElementById("crowd-score");
+    const statusEl = document.getElementById("crowd-status");
+    crowdEl.innerText = estimatedCrowd;
+    crowdEl.className = ""; statusEl.className = "";
+    
+    if (estimatedCrowd < 40) {
+        crowdEl.classList.add("status-green");
+        statusEl.classList.add("status-green");
+        statusEl.innerText = "Low";
+    } else if (estimatedCrowd < 75) {
+        crowdEl.classList.add("status-orange");
+        statusEl.classList.add("status-orange");
+        statusEl.innerText = "Moderate";
+    } else {
+        crowdEl.classList.add("status-red");
+        statusEl.classList.add("status-red");
+        statusEl.innerText = "High Congestion";
     }
 }
 </script>
