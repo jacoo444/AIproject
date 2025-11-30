@@ -20,33 +20,34 @@
         background-color: rgba(41, 128, 185, 0.8); color: white; font-weight: bold; border-radius: 50%;
     }
 
-    /* --- FULL WIDTH HEADER --- */
+    /* --- HEADER (Fixed Top, Not Floating) --- */
     header { 
         background: white; 
         color: #333; 
         padding: 15px 20px; 
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1); /* Shadow to separate from map */
         text-align: left;         
         font-weight: bold; 
         letter-spacing: 0.5px;
         font-size: 1.2em;
         flex-shrink: 0;
-        z-index: 1001;
+        z-index: 1002; /* Above map controls */
+        position: relative;
     }
 
-    /* --- MAP CONTAINER --- */
+    /* --- MAP CONTAINER (Full Width/Height, No Radius) --- */
     #map-wrapper {
-        padding: 15px 15px 0 15px;
+        padding: 0; /* REMOVED PADDING */
         flex-grow: 1;
         position: relative;
-        min-height: 350px;
+        min-height: 0; /* Flexbox fix */
     }
 
     #map-container { 
         height: 100%; width: 100%; 
-        border-radius: 15px; 
+        border-radius: 0; /* REMOVED RADIUS */
         overflow: hidden; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        /* REMOVED SHADOW */
         position: relative;
     }
     #map { height: 100%; width: 100%; z-index: 1; }
@@ -74,25 +75,25 @@
     #search-results li { padding: 10px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px; }
     #search-results li:hover { background-color: #f0f8ff; color: #0078d7; }
 
-    /* --- DASHBOARD --- */
+    /* --- DASHBOARD (Floating Cards) --- */
     .dashboard-container {
-        padding: 15px;
+        padding: 15px; /* Keeps the gap around the cards */
         display: flex;
         gap: 15px;
         justify-content: center;
         align-items: stretch;
         flex-shrink: 0;
+        background: #f0f2f5; /* Match body bg */
+        z-index: 1001;
     }
 
     .card {
         background: white;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        border-radius: 15px; /* Floating rounded look */
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05); /* Floating shadow */
         padding: 15px;
         text-align: center;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
-        
-        /* FIXED HEIGHT: 180px makes the 180px wide cards squares */
         height: 180px; 
         box-sizing: border-box;
     }
@@ -102,14 +103,13 @@
 
     .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:5px;}
     
-    /* Title Styling - Updated for Wrapping */
     .highlight { 
         color: #2c3e50; 
         font-size: 1.3em; 
         font-weight: bold; 
-        white-space: normal; /* Allow text wrapping */
+        white-space: normal; 
         line-height: 1.2;
-        padding: 0 25px; /* Padding for close btn space */
+        padding: 0 25px; 
     }
     
     .blue-highlight { color: #0078d7; }
@@ -121,53 +121,29 @@
     }
     .close-btn:hover { color: #c0392b; }
 
-    /* --- RESULT CARD SPLIT LAYOUT (50/50) --- */
+    /* --- RESULT CARD LAYOUT --- */
     .result-top-half {
-        height: 50%;
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
+        height: 50%; width: 100%;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
         position: relative;
     }
 
     .result-bottom-half {
-        height: 50%;
-        width: 100%;
-        display: flex;
-        border-top: 1px solid #eee;
-        padding-top: 5px;
-        box-sizing: border-box;
-        gap: 10px;
+        height: 50%; width: 100%;
+        display: flex; border-top: 1px solid #eee; padding-top: 5px; box-sizing: border-box; gap: 10px;
     }
 
-    /* Left side: Tags */
     .info-left-tags {
-        flex: 1;
-        display: flex;
-        flex-direction: row; 
-        flex-wrap: wrap;     
-        justify-content: center; 
-        align-content: center;
-        gap: 5px;            
-        border-right: 1px solid #eee;
-        padding-right: 10px;
-        overflow-y: auto; /* Scroll if too many tags */
+        flex: 1; display: flex; flex-direction: row; flex-wrap: wrap;     
+        justify-content: center; align-content: center; gap: 5px;            
+        border-right: 1px solid #eee; padding-right: 10px; overflow-y: auto; 
     }
-    
     .tag {
         background: #f0f2f5; color: #555; 
-        font-size: 0.8em; padding: 4px 8px; 
-        border-radius: 4px; font-weight: 600; white-space: nowrap; 
+        font-size: 0.8em; padding: 4px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap; 
     }
-
-    /* Right side: Distances */
     .info-right-dist {
-        flex: 1;
-        display: flex;
-        padding-left: 10px;
-        align-items: center;
+        flex: 1; display: flex; padding-left: 10px; align-items: center;
     }
     .dist-subitem { flex: 1; text-align: center; }
 
@@ -179,11 +155,13 @@
         height: 35px;
     }
 
-    .events-controls {
-        display: flex; align-items: center; justify-content: center;
-        gap: 5px; width: 100%; margin-top: 5px;
+    .events-wrapper {
+        display: flex; flex-direction: column; align-items: center; width: 100%;
     }
-    
+    .events-btn-row {
+        display: flex; flex-direction: row; align-items: center; justify-content: center;
+        gap: 10px; width: 100%; margin-top: 5px;
+    }
     .evt-btn {
         border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9;
         font-weight: bold; color: #333; cursor: pointer;
@@ -191,9 +169,10 @@
         display: flex; align-items: center; justify-content: center;
     }
     .evt-btn:hover { background: #eef; color: #0078d7; border-color: #aaf; }
+    
     .evt-display {
-        font-size: 1.4em; font-weight: bold; color: #8e44ad;
-        min-width: 40px; text-align: center;
+        font-size: 2.2em; font-weight: bold; color: #8e44ad;
+        min-width: 40px; text-align: center; line-height: 1; margin-bottom: 5px;
     }
 
     /* Colors */
@@ -292,12 +271,13 @@
         <div id="events-placeholder" class="placeholder-text">Select Place</div>
 
         <div id="events-content" style="display:none; width: 100%; text-align:center;">
-             <div class="events-controls">
-                <button class="evt-btn" onclick="modifyEvents(-1)">-</button>
-                <span id="events-display" class="evt-display">0</span>
-                <button class="evt-btn" onclick="modifyEvents(1)">+</button>
+             <div class="events-wrapper">
+                <div id="events-display" class="evt-display">0</div>
+                <div class="events-btn-row">
+                    <button class="evt-btn" onclick="modifyEvents(-1)">-</button>
+                    <button class="evt-btn" onclick="modifyEvents(1)">+</button>
+                </div>
              </div>
-             <small style="color:#aaa; display:block; margin-top:5px;">Adjust Level (0-100)</small>
         </div>
     </div>
 
@@ -455,9 +435,8 @@ searchInput.addEventListener('keyup', function() {
 function modifyEvents(amount) {
     if (!currentSelectedPlace) return;
     
-    currentEventsValue += (amount * 5); 
+    currentEventsValue += amount; 
     if (currentEventsValue < 0) currentEventsValue = 0;
-    if (currentEventsValue > 100) currentEventsValue = 100;
     
     document.getElementById("events-display").innerText = currentEventsValue;
     updateCrowdDisplay(); 
@@ -467,7 +446,6 @@ function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
     
-    // UI Resets
     document.getElementById("result-content").style.display = "none"; 
     document.getElementById("instruction").style.display = "block";
     
@@ -500,7 +478,7 @@ function handleLocationInput(latlng) {
 
     if (nearest) {
         currentSelectedPlace = nearest;
-        currentEventsValue = Math.round(nearest.events); 
+        currentEventsValue = 0; 
 
         if (minDistance > 5) {
             let d = minDistance;
@@ -547,14 +525,16 @@ function updateCrowdDisplay() {
     const place = currentSelectedPlace;
     const weatherState = document.getElementById("weather-select").value;
     
-    // 60% importance to Base Crowd, 40% importance to Events
-    let baseScore = (place.crowd * 0.6) + (currentEventsValue * 0.4);
+    // Formula: BaseCrowd * WeatherMod * (1 + (EventCount * 0.05))
+    let baseCrowd = place.crowd;
 
-    let modifier = 1.0;
-    if (weatherState === "Sunny") modifier = 1.15; 
-    if (weatherState === "Rainy") modifier = 0.75; 
+    let weatherMod = 1.0;
+    if (weatherState === "Sunny") weatherMod = 1.2; 
+    if (weatherState === "Rainy") weatherMod = 0.8; 
     
-    let estimatedCrowd = Math.round(baseScore * modifier);
+    let eventMod = 1 + (currentEventsValue * 0.05);
+
+    let estimatedCrowd = Math.round(baseCrowd * weatherMod * eventMod);
     
     if (estimatedCrowd > 100) estimatedCrowd = 100;
     if (estimatedCrowd < 0) estimatedCrowd = 0;
