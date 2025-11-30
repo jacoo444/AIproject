@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Pro Map - Crowd Logic</title>
+<title>Barcelona Smart Guide - Clean Map</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; }
 
-    /* Layout */
     header { 
         background: #2c3e50; color: #fff; padding: 15px; 
         text-align: center; font-weight: bold; letter-spacing: 1px;
@@ -21,18 +21,11 @@
     #map-container { position: relative; height: 60vh; width: 100%; }
     #map { height: 100%; width: 100%; z-index: 1; }
 
-    /* Controls Wrapper */
     .controls-wrapper {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        z-index: 1000;
-        display: flex;
-        gap: 10px;
-        align-items: flex-start;
+        position: absolute; top: 20px; right: 20px; z-index: 1000;
+        display: flex; gap: 10px; align-items: flex-start;
     }
 
-    /* Buttons & Search */
     .gps-btn {
         background: white; border: none; padding: 10px; 
         border-radius: 8px; cursor: pointer;
@@ -57,29 +50,19 @@
     }
     #search-results li:hover { background-color: #f0f8ff; color: #0078d7; }
 
-    /* Info Panel Structure */
+    /* Info Panel */
     .info-panel {
         max-width: 800px; margin: 0 auto; padding: 15px;
         background: white; border-radius: 0 0 8px 8px; 
         box-shadow: 0 -2px 10px rgba(0,0,0,0.05); text-align: center;
     }
 
-    /* 3-Column Grid */
     .data-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr; /* Equal width columns */
+        display: grid; grid-template-columns: 1fr 1.2fr 1fr; 
         gap: 10px;
-        margin-top: 15px;
-        border-top: 1px solid #eee;
-        padding-top: 15px;
-        align-items: center;
+        margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; align-items: center;
     }
-
-    .data-item { 
-        padding: 5px;
-    }
-    
-    /* Borders for separation */
+    .data-item { padding: 5px; }
     .data-item:nth-child(2) { border-left: 1px solid #eee; border-right: 1px solid #eee; }
 
     .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:4px;}
@@ -88,11 +71,12 @@
     .highlight { color: #2c3e50; font-size: 1.4em; }
     .blue-highlight { color: #0078d7; }
     
-    /* Dynamic Colors */
     .status-green { color: #27ae60; }
     .status-orange { color: #f39c12; }
     .status-red { color: #c0392b; }
 
+    /* Hide the default Routing Machine white box text */
+    .leaflet-routing-container { display: none !important; }
 </style>
 </head>
 
@@ -117,14 +101,13 @@
 <div class="info-panel">
     <div id="instruction" style="color:#777;">
         <span id="gps-status">Locating you...</span><br>
-        <small>Select an attraction to see distances and crowd predictions.</small>
+        <small>Select an attraction to calculate street path.</small>
     </div>
     
     <div id="result-content" style="display:none;">
         <h3 class="highlight" id="nearest-name" style="margin:0; margin-bottom:5px;">--</h3>
         
         <div class="data-grid">
-            
             <div class="data-item">
                 <span class="label">Current Weather</span>
                 <span id="weather-icon" style="font-size:1.8em;">--</span><br>
@@ -133,12 +116,12 @@
 
             <div class="data-item">
                 <span class="label">Distance Info</span>
-                <div style="margin-bottom:4px;">
-                    <small style="color:#aaa;">From Selection:</small> 
-                    <span id="distance-info" style="font-weight:bold;">--</span>
+                <div style="margin-bottom:8px;">
+                    <small style="color:#aaa;">Walking Path:</small><br> 
+                    <span id="distance-info" style="font-weight:bold;">Calculating...</span>
                 </div>
                 <div>
-                    <small style="color:#aaa;">From You:</small> 
+                    <small style="color:#aaa;">From You (Straight Line):</small><br> 
                     <span id="user-distance" class="blue-highlight" style="font-weight:bold;">--</span>
                 </div>
             </div>
@@ -149,13 +132,13 @@
                 <span style="font-size:0.8em; color:#aaa;">/ 100</span><br>
                 <span id="crowd-status" style="font-weight:bold; font-size:0.8em;">--</span>
             </div>
-
         </div>
     </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
@@ -168,18 +151,17 @@ let gpsLayer = L.layerGroup();
 let markersCluster = L.markerClusterGroup(); 
 let userRealLocation = null; 
 let fuse; 
+let routingControl = null;
 
-// Simulated Weather State
 let weatherState = "Sunny"; 
 
 document.addEventListener("DOMContentLoaded", () => {
-    generateWeather(); // Pick random weather on load
+    generateWeather(); 
     initMap();
     fetchCSV();
     triggerGPS();
 });
 
-// 1. Random Weather Generator
 function generateWeather() {
     const types = ["Sunny", "Cloudy", "Rainy"];
     weatherState = types[Math.floor(Math.random() * types.length)];
@@ -207,9 +189,11 @@ function triggerGPS() {
         (pos) => {
             userRealLocation = L.latLng(pos.coords.latitude, pos.coords.longitude);
             gpsLayer.clearLayers();
+            // REMOVED .bindPopup("You are here")
             L.circleMarker(userRealLocation, {
                 radius: 8, fillColor: "#3388ff", color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.8
-            }).addTo(gpsLayer).bindPopup("You are here").openPopup();
+            }).addTo(gpsLayer); 
+            
             map.setView(userRealLocation, 15);
             document.getElementById("gps-status").innerText = "GPS Active 📍";
         },
@@ -225,19 +209,19 @@ function fetchCSV() {
         const lines = text.split("\n").slice(1);
         places = lines.map(l => {
             const c = l.split(",");
-            if (c.length < 5) return null; // Ensure we have cols for crowd/events
+            if (c.length < 5) return null; 
             return {
                 name: c[0].trim(),
                 lat: parseFloat(c[1]),
                 lon: parseFloat(c[2]),
-                crowd: parseFloat(c[3]) || 0, // Fallback if empty
+                crowd: parseFloat(c[3]) || 0, 
                 events: parseFloat(c[4]) || 0
             };
         }).filter(x => x && !isNaN(x.lat));
         
         places.forEach(p => {
             const m = L.marker([p.lat, p.lon]);
-            m.bindPopup(`<b>${p.name}</b>`);
+            // REMOVED m.bindPopup(...) here
             m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
             markersCluster.addLayer(m);
         });
@@ -271,16 +255,22 @@ searchInput.addEventListener('keyup', function() {
     } else { resultsList.style.display = 'none'; }
 });
 
-// CORE LOGIC + CROWD CALCULATION
 function handleLocationInput(latlng) {
+    // 1. Reset map layers
     selectionLayer.clearLayers(); 
+    if (routingControl) {
+        map.removeControl(routingControl);
+        routingControl = null;
+    }
 
+    // 2. Add Red Marker (User click/search) - No popup
     const redIcon = L.icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
         iconSize: [25, 41], iconAnchor: [12, 41]
     });
     L.marker(latlng, {icon: redIcon}).addTo(selectionLayer);
 
+    // 3. Find Nearest
     let nearest = null;
     let minDistance = Infinity;
 
@@ -290,25 +280,41 @@ function handleLocationInput(latlng) {
     });
 
     if (nearest) {
-        if (minDistance > 5) {
-            L.polyline([latlng, [nearest.lat, nearest.lon]], {
-                color: 'red', weight: 3, opacity: 0.7, dashArray: '10, 10'
-            }).addTo(selectionLayer);
+        // --- ROUTING (Selection -> Attraction) ---
+        document.getElementById("distance-info").innerText = "Calculating path...";
+        
+        if (minDistance > 10) {
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(latlng.lat, latlng.lng),
+                    L.latLng(nearest.lat, nearest.lon)
+                ],
+                routeWhileDragging: false,
+                draggableWaypoints: false,
+                fitSelectedRoutes: false, 
+                addWaypoints: false,
+                show: false, 
+                createMarker: function() { return null; }, 
+                lineOptions: { styles: [{color: '#e74c3c', opacity: 0.8, weight: 5}] }
+            }).on('routesfound', function(e) {
+                const d = e.routes[0].summary.totalDistance;
+                let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
+                document.getElementById("distance-info").innerText = dString;
+                document.getElementById("distance-info").style.color = "black";
+            }).on('routingerror', function() {
+                 document.getElementById("distance-info").innerText = "Path unavailable";
+            }).addTo(map);
+        } else {
+            document.getElementById("distance-info").innerText = "0 m";
+            document.getElementById("distance-info").style.color = "green";
         }
 
+        // --- UPDATE INFO PANEL ---
         document.getElementById("instruction").style.display = "none";
         document.getElementById("result-content").style.display = "block";
         document.getElementById("nearest-name").innerText = nearest.name;
-        
-        // --- 1. Distances ---
-        if (minDistance < 5) {
-            document.getElementById("distance-info").innerText = "0 m";
-            document.getElementById("distance-info").style.color = "green";
-        } else {
-            document.getElementById("distance-info").innerText = `${Math.round(minDistance)} m`;
-            document.getElementById("distance-info").style.color = "black";
-        }
 
+        // GPS Straight Line Distance
         if (userRealLocation) {
             const distFromUser = map.distance(userRealLocation, [nearest.lat, nearest.lon]);
             let distString = distFromUser > 1000 
@@ -319,30 +325,25 @@ function handleLocationInput(latlng) {
             document.getElementById("user-distance").innerText = "--";
         }
 
-        // --- 2. Update Weather UI (Left Box) ---
+        // Weather UI
         let wIcon = "☀️";
         if(weatherState === "Cloudy") wIcon = "☁️";
         if(weatherState === "Rainy") wIcon = "🌧️";
-        
         document.getElementById("weather-icon").innerText = wIcon;
         document.getElementById("weather-text").innerText = weatherState;
 
-        // --- 3. Calculate Crowd (Right Box) ---
+        // Crowd Calculation
         let modifier = 1;
-        if (weatherState === "Sunny") modifier = 1.2; // People go out
-        if (weatherState === "Rainy") modifier = 0.7; // People stay inside
+        if (weatherState === "Sunny") modifier = 1.5; 
+        if (weatherState === "Rainy") modifier = 0.7; 
         
         let estimatedCrowd = Math.round((nearest.crowd + nearest.events) * modifier);
-        if (estimatedCrowd > 100) estimatedCrowd = 100; // Cap at 100
+        if (estimatedCrowd > 100) estimatedCrowd = 100;
         
         const crowdEl = document.getElementById("crowd-score");
         const statusEl = document.getElementById("crowd-status");
-        
         crowdEl.innerText = estimatedCrowd;
-        
-        // Colour logic
-        crowdEl.className = ""; // Reset class
-        statusEl.className = "";
+        crowdEl.className = ""; statusEl.className = "";
         
         if (estimatedCrowd < 40) {
             crowdEl.classList.add("status-green");
