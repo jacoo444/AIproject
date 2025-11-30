@@ -3,7 +3,7 @@ import json
 import os
 
 INPUT_FILE = 'places_database.csv'
-OUTPUT_FILE = 'heatmap_data.json'
+OUTPUT_FILE = 'heatmap_database.json'
 
 print(f"--- 📦 Exporting Heatmap Data from {INPUT_FILE} ---")
 
