@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Barcelona Pro Map</title>
+<title>Barcelona Pro Map - CSV Search</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-search@2.9.8/dist/leaflet-search.min.css" />
 
 <style>
     body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; }
@@ -19,6 +19,7 @@
         height: 60vh; 
         width: 100%; 
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        z-index: 1;
     }
 
     .info-panel {
@@ -39,29 +40,39 @@
     h3 { margin-top: 0; color: #2c3e50; }
     .highlight { color: #e74c3c; font-weight: bold; font-size: 1.2em; }
     .coords { font-family: monospace; color: #555; background: #eee; padding: 4px 8px; border-radius: 4px; }
+    
+    /* Style tweaks for the search bar to make it look nice */
+    .leaflet-control-search .search-input {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 5px 10px;
+    }
 </style>
 </head>
 
 <body>
 
 <header>
-    📍 Barcelona Smart Locator
+    📍 Barcelona CSV Explorer
 </header>
 
 <div id="map"></div>
 
 <div class="info-panel">
     <h3>Analysis Result</h3>
-    <div id="instruction" style="color:#777;">Click anywhere on the map or use the search button (top right) to find the nearest attraction.</div>
+    <div id="instruction" style="color:#777;">
+        🔍 Use the <b>Search Button (top left)</b> to find a specific attraction from your list,<br> 
+        or click anywhere on the map.
+    </div>
     
     <div id="result-content" style="display:none;">
         <div class="data-row">
             <div class="data-box">
-                <small>Your Selection</small><br>
+                <small>Selected Coordinates</small><br>
                 <div class="coords" id="user-coords">--</div>
             </div>
             <div class="data-box">
-                <small>Nearest Attraction</small><br>
+                <small>Nearest CSV Attraction</small><br>
                 <span class="highlight" id="nearest-name">--</span><br>
                 <span id="distance-info">--</span>
             </div>
@@ -70,99 +81,110 @@
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script src="https://unpkg.com/leaflet-search@2.9.8/dist/leaflet-search.min.js"></script>
 
 <script>
 const CSV_URL = "https://raw.githubusercontent.com/jacoo444/AIproject/main/CL.csv";
 
 let map;
-let places = [];        // Will hold CSV data
-let mapMarkers = [];    // Holds the blue attraction markers
-let userLayer = L.layerGroup(); // Holds the user's click marker and the connecting line
+let places = [];        
+let markersLayer;       // A special group layer for the search plugin
+let userLayer = L.layerGroup(); 
 
-// 1. Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
     fetchCSV();
 });
 
-// 2. Load and Parse CSV
 function fetchCSV() {
     fetch(CSV_URL)
     .then(res => res.text())
     .then(text => {
-        const lines = text.split("\n").slice(1); // Skip header
+        const lines = text.split("\n").slice(1);
         places = lines.map(l => {
             const c = l.split(",");
             if (c.length < 3) return null; 
             return {
                 name: c[0],
-                lat: parseFloat(c[1]), // Index 1 is Latitude
-                lon: parseFloat(c[2])  // Index 2 is Longitude
+                lat: parseFloat(c[1]),
+                lon: parseFloat(c[2])
             };
-        }).filter(x => x && !isNaN(x.lat)); // Filter out bad lines
+        }).filter(x => x && !isNaN(x.lat));
         
         plotCSVMarkers();
     });
 }
 
-// 3. Map Setup
 function initMap() {
     map = L.map("map").setView([41.3851, 2.1734], 13);
 
-    // Clean Map Tiles (CartoDB Voyager)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OSM &copy; CARTO',
         maxZoom: 20
     }).addTo(map);
 
+    // Initialize the layer group that will hold our searchable markers
+    markersLayer = new L.LayerGroup();
+    map.addLayer(markersLayer);
+    
     userLayer.addTo(map);
-
-    // A. Add Search Control (Geocoder)
-    const geocoder = L.Control.geocoder({
-        defaultMarkGeocode: false // We handle the result manually below
-    }).addTo(map);
-
-    // B. Handle Search Result
-    geocoder.on('markgeocode', function(e) {
-        const latlng = e.geocode.center;
-        map.setView(latlng, 15);
-        handleLocationInput(latlng);
+    
+    // Setup the Search Control (This is the magic part)
+    const searchControl = new L.Control.Search({
+        layer: markersLayer,        // Only search inside our CSV markers
+        propertyName: 'title',      // Search based on the marker's title
+        initial: false,
+        zoom: 16,
+        marker: false,              // We handle the marker visuals ourselves
+        textPlaceholder: 'Search attractions...'
     });
 
-    // C. Handle Map Clicks
+    // When the user selects a result from the search bar:
+    searchControl.on('search:locationfound', function(e) {
+        // e.latlng contains the coordinates of the found place
+        handleLocationInput(e.latlng);
+        
+        // Open the popup of the found marker
+        e.layer.openPopup();
+    });
+
+    map.addControl(searchControl);
+
+    // Also handle normal clicks
     map.on('click', function(e) {
         handleLocationInput(e.latlng);
     });
 }
 
-// 4. Plot CSV Data (Blue Markers)
 function plotCSVMarkers() {
     places.forEach(p => {
-        const m = L.marker([p.lat, p.lon]).addTo(map);
+        // We add 'title' here because the Search Plugin looks for this specific property
+        const m = L.marker([p.lat, p.lon], { title: p.name });
         m.bindPopup(`<b>${p.name}</b>`);
-        mapMarkers.push(m);
+        
+        // Add to the special searchable layer
+        markersLayer.addLayer(m);
     });
 }
 
-// 5. CORE LOGIC: Handle User Input (Click or Search)
 function handleLocationInput(latlng) {
-    userLayer.clearLayers(); // Remove old red markers/lines
+    userLayer.clearLayers(); 
 
-    // 1. Show User's Location (Red Marker)
+    // 1. Red Marker for "Selection"
     const redIcon = L.icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
         iconSize: [25, 41],
         iconAnchor: [12, 41]
     });
-    L.marker(latlng, {icon: redIcon}).addTo(userLayer).bindPopup("You are here").openPopup();
+    // We don't need a popup here if we zoomed to an attraction, 
+    // but useful if they clicked empty space.
+    L.marker(latlng, {icon: redIcon}).addTo(userLayer);
 
-    // 2. Find Nearest Place in CSV
+    // 2. Find Nearest Place
     let nearest = null;
     let minDistance = Infinity;
 
     places.forEach(p => {
-        // Leaflet's built-in distance function (returns meters)
         const dist = map.distance(latlng, [p.lat, p.lon]);
         if (dist < minDistance) {
             minDistance = dist;
@@ -171,28 +193,30 @@ function handleLocationInput(latlng) {
     });
 
     if (nearest) {
-        // 3. Draw a dashed line to the nearest place
-        L.polyline([latlng, [nearest.lat, nearest.lon]], {
-            color: 'red',
-            weight: 3,
-            opacity: 0.7,
-            dashArray: '10, 10'
-        }).addTo(userLayer);
+        // 3. Draw Line (Only if distance is significant, > 1 meter)
+        if (minDistance > 1) {
+            L.polyline([latlng, [nearest.lat, nearest.lon]], {
+                color: 'red',
+                weight: 3,
+                opacity: 0.7,
+                dashArray: '10, 10'
+            }).addTo(userLayer);
+        }
 
-        // 4. Update the HTML Info Panel
+        // 4. Update UI
         document.getElementById("instruction").style.display = "none";
         document.getElementById("result-content").style.display = "block";
-        
-        // Print Coordinates
-        document.getElementById("user-coords").innerText = 
-            `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
-        
-        // Print Nearest Name
+        document.getElementById("user-coords").innerText = `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
         document.getElementById("nearest-name").innerText = nearest.name;
         
-        // Print Distance
-        document.getElementById("distance-info").innerText = 
-            `approx ${Math.round(minDistance)} meters away`;
+        // If distance is basically 0, it means they searched for the attraction itself
+        if (minDistance < 5) {
+            document.getElementById("distance-info").innerText = "Exact match (0m)";
+            document.getElementById("distance-info").style.color = "green";
+        } else {
+            document.getElementById("distance-info").innerText = `approx ${Math.round(minDistance)} meters away`;
+            document.getElementById("distance-info").style.color = "black";
+        }
     }
 }
 </script>
