@@ -103,14 +103,14 @@
         z-index: 1001;
     }
 
-    /* --- UNIFIED CARD --- */
+    /* --- UNIFIED CARD (Info + Weather + Events) --- */
     .card-unified {
         background: white;
         border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         display: flex;
         flex-direction: row; 
-        flex: 4; 
+        flex-grow: 1; /* Grow to fill space */
         height: 180px; 
         box-sizing: border-box;
         overflow: hidden; 
@@ -125,11 +125,25 @@
         position: relative;
     }
     
-    .section-info { flex: 2; border-right: 1px solid #eee; min-width: 300px; }
-    .section-weather { flex: 1; border-right: 1px solid #eee; min-width: 150px; }
-    .section-events { flex: 1; min-width: 150px; }
+    /* INFO: Flexible width */
+    .section-info { 
+        flex-grow: 1; /* Takes all remaining space */
+        border-right: 1px solid #eee; 
+        min-width: 250px; 
+    }
+    
+    /* WEATHER & EVENTS: Fixed Square Width */
+    .section-weather { 
+        flex: 0 0 180px; /* Fixed 180px width */
+        width: 180px;
+        border-right: 1px solid #eee; 
+    }
+    .section-events { 
+        flex: 0 0 180px; /* Fixed 180px width */
+        width: 180px;
+    }
 
-    /* --- CROWD CARD --- */
+    /* --- CROWD CARD (Separate, Square) --- */
     .card-crowd {
         background: white;
         border-radius: 15px;
@@ -139,8 +153,10 @@
         display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
         height: 180px; 
         box-sizing: border-box;
-        flex: 1; 
-        min-width: 180px;
+        
+        /* Fixed Square Width */
+        flex: 0 0 180px;
+        width: 180px;
     }
 
     .card-content-wrapper {
@@ -168,7 +184,6 @@
     /* --- UPDATED CLOSE BUTTON --- */
     .close-btn {
         position: absolute; 
-        /* Adjusted to fit snugly in corner radius */
         top: 6px; 
         left: 6px; 
         width: 32px; 
@@ -251,12 +266,12 @@
     .status-neutral { color: #ccc; }
     .status-purple { color: #8e44ad; }
 
-    @media (max-width: 900px) {
+    @media (max-width: 1000px) {
         .dashboard-container { flex-direction: column; height: auto;}
-        .card-unified { flex-direction: column; height: auto; }
-        .unified-section { border-right: none; border-bottom: 1px solid #eee; padding: 15px; width: 100%; min-height: 150px;}
-        .unified-section:last-child { border-bottom: none; }
-        .card-crowd { width: 100%; max-width: none; margin-top: 10px; }
+        .card-unified { flex-direction: column; height: auto; width: 100%;}
+        .unified-section { border-right: none; border-bottom: 1px solid #eee; padding: 15px; width: 100%; min-height: 150px; flex: auto;}
+        .section-weather, .section-events { width: 100%; flex: auto; } /* Reset width on mobile */
+        .card-crowd { width: 100%; flex: auto; max-width: none; margin-top: 10px; }
         #map-wrapper { min-height: 40vh; }
         .result-bottom-half { flex-direction: column; gap: 5px; }
         .info-left-tags { border-right: none; border-bottom: 1px solid #eee; padding-bottom: 5px; width: 100%; padding-right:0; }
