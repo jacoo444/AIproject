@@ -3,31 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Smart Guide - Fixed</title>
+<title>Barcelona Smart Guide - Weather Control</title>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; }
 
-    /* --- CLUSTER BUBBLES (Small & Blue) --- */
+    /* --- CUSTOM CLUSTER COLORS (ALL BLUE) --- */
     .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
         background-color: rgba(41, 128, 185, 0.4);
     }
     .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
         background-color: rgba(41, 128, 185, 0.8);
-        color: white; 
-        font-weight: bold; 
-        border-radius: 50%;
-        /* Force 50% smaller size */
-        width: 30px !important;
-        height: 30px !important;
-        margin-left: 5px !important;
-        margin-top: 5px !important;
-        line-height: 30px !important;
-        font-size: 11px !important;
+        color: white; font-weight: bold; border-radius: 50%;
     }
     /* ---------------------------------------- */
 
@@ -53,21 +44,17 @@
     }
     .gps-btn:hover { background: #f0f8ff; color: #0078d7; }
 
-    /* Search Box: Rounded corners fix */
     .search-box {
-        background: white; padding: 0; border-radius: 8px;
+        background: white; padding: 5px; border-radius: 8px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2); width: 250px;
-        display: flex; overflow: hidden; /* Prevents input from overflowing radius */
+        /* FIX: Prevents input from bleeding over rounded corners */
+        overflow: hidden; 
     }
-    .search-box input { 
-        width: 100%; border: none; outline: none; padding: 12px; font-size: 14px; 
-    }
+    .search-box input { width: 100%; border: none; outline: none; padding: 8px; font-size: 14px; box-sizing: border-box; }
 
     #search-results {
         list-style: none; padding: 0; margin: 0;
         max-height: 200px; overflow-y: auto; display: none; border-top: 1px solid #eee;
-        position: absolute; top: 50px; background: white; width: 250px; 
-        border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     #search-results li {
         padding: 10px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px;
@@ -79,7 +66,17 @@
         max-width: 800px; margin: 0 auto; padding: 15px;
         background: white; border-radius: 0 0 8px 8px; 
         box-shadow: 0 -2px 10px rgba(0,0,0,0.05); text-align: center;
+        position: relative; /* Needed for absolute positioning of close button */
     }
+
+    /* Close Button Style */
+    .close-btn {
+        position: absolute; top: 10px; right: 20px;
+        font-size: 24px; color: #aaa; cursor: pointer;
+        line-height: 1; font-weight: bold;
+        transition: color 0.2s;
+    }
+    .close-btn:hover { color: #c0392b; }
 
     .data-grid {
         display: grid; grid-template-columns: 1fr 1.2fr 1fr; 
@@ -99,17 +96,19 @@
     .status-orange { color: #f39c12; }
     .status-red { color: #c0392b; }
 
+    /* Dropdown Styling */
     #weather-select {
-        border: 1px solid #ddd; border-radius: 4px; padding: 5px;
-        font-family: inherit; color: #333; font-weight: bold; cursor: pointer;
-        margin-top: 5px; width: 100px; text-align: center;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 5px;
+        font-family: inherit;
+        color: #333;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 5px;
+        width: 100px;
+        text-align: center;
     }
-
-    /* Clear 'X' Button */
-    .clear-btn {
-        cursor: pointer; color: #999; font-size: 18px; margin-left: 10px; vertical-align: middle;
-    }
-    .clear-btn:hover { color: #c0392b; }
 </style>
 </head>
 
@@ -138,10 +137,9 @@
     </div>
     
     <div id="result-content" style="display:none;">
-        <div style="display:flex; justify-content:center; align-items:center;">
-            <h3 class="highlight" id="nearest-name" style="margin:0;">--</h3>
-            <span class="clear-btn" onclick="clearSelection()" title="Clear Selection">✖</span>
-        </div>
+        <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
+
+        <h3 class="highlight" id="nearest-name" style="margin:0; margin-bottom:5px;">--</h3>
         
         <div class="data-grid">
             <div class="data-item">
@@ -176,8 +174,8 @@
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
@@ -187,29 +185,43 @@ let map;
 let places = [];        
 let selectionLayer = L.layerGroup(); 
 let gpsLayer = L.layerGroup();
-let markersCluster; 
+let markersCluster = L.markerClusterGroup(); 
 let userRealLocation = null; 
 let fuse; 
 let currentSelectedPlace = null; 
 
-// --- ROBUST 50% SMALLER ICON ---
-// Using Cloudflare CDN links (more reliable than unpkg)
-const smallBlueIcon = L.icon({
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-    iconSize: [12, 20],      // 50% scale
-    iconAnchor: [6, 20],     // Anchor at bottom center
-    popupAnchor: [1, -20],
-    shadowSize: [20, 20],
-    shadowAnchor: [6, 20]
+// --- UPDATED: Defined Custom Icons (70% size) ---
+// Original size is [25, 41], anchor [12, 41]
+// New Size is approx [18, 29], anchor [9, 29]
+const smallIconSize = [18, 29];
+const smallIconAnchor = [9, 29];
+const smallShadowSize = [29, 29]; // approximated
+
+const blueIcon = L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconSize: smallIconSize,
+    iconAnchor: smallIconAnchor,
+    popupAnchor: [1, -34],
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    shadowSize: smallShadowSize
 });
+
+const redIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+    iconSize: smallIconSize,
+    iconAnchor: smallIconAnchor,
+    popupAnchor: [1, -34],
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    shadowSize: smallShadowSize
+});
+// ------------------------------------------------
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
     fetchCSV();
     triggerGPS();
     
-    // Weather Change Listener
+    // Listen for weather changes
     document.getElementById("weather-select").addEventListener("change", function() {
         updateWeatherIcon();
         if(currentSelectedPlace) {
@@ -228,14 +240,9 @@ function updateWeatherIcon() {
 
 function initMap() {
     map = L.map("map").setView([41.3851, 2.1734], 13);
-    
-    // CartoDB Voyager Tiles (Clean look)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; CARTO', maxZoom: 20
     }).addTo(map);
-
-    // Initialize Cluster Group (Radius 40 = tighter grouping)
-    markersCluster = L.markerClusterGroup({ maxClusterRadius: 40 });
 
     map.addLayer(markersCluster);
     selectionLayer.addTo(map);
@@ -258,6 +265,15 @@ function triggerGPS() {
             }).addTo(gpsLayer); 
             map.setView(userRealLocation, 15);
             document.getElementById("gps-status").innerText = "GPS Active 📍";
+            
+            // If a place is already selected, update the "From You" distance
+            if(currentSelectedPlace) {
+               const distFromUser = map.distance(userRealLocation, [currentSelectedPlace.lat, currentSelectedPlace.lon]);
+               const distString = distFromUser > 1000 
+                    ? (distFromUser/1000).toFixed(1) + " km" 
+                    : Math.round(distFromUser) + " m";
+               document.getElementById("user-distance").innerText = distString;
+            }
         },
         (err) => { document.getElementById("gps-status").innerText = "GPS Access Denied"; },
         { enableHighAccuracy: true }
@@ -266,43 +282,29 @@ function triggerGPS() {
 
 function fetchCSV() {
     fetch(CSV_URL)
-    .then(res => {
-        if (!res.ok) throw new Error("CSV not found");
-        return res.text();
-    })
+    .then(res => res.text())
     .then(text => {
         const lines = text.split("\n").slice(1);
         places = lines.map(l => {
             const c = l.split(",");
             if (c.length < 5) return null; 
-            
-            // Create Marker with Small Icon
-            const m = L.marker([parseFloat(c[1]), parseFloat(c[2])], { icon: smallBlueIcon });
-            
-            // Attach Click Event
-            m.on('click', () => handleLocationInput(L.latLng(parseFloat(c[1]), parseFloat(c[2]))));
-            
             return {
                 name: c[0].trim(),
                 lat: parseFloat(c[1]),
                 lon: parseFloat(c[2]),
                 crowd: parseFloat(c[3]) || 0, 
-                events: parseFloat(c[4]) || 0,
-                markerObj: m 
+                events: parseFloat(c[4]) || 0
             };
         }).filter(x => x && !isNaN(x.lat));
         
-        // Add markers to cluster
         places.forEach(p => {
-            markersCluster.addLayer(p.markerObj);
+            // Apply the new smaller blue icon here
+            const m = L.marker([p.lat, p.lon], { icon: blueIcon });
+            m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
+            markersCluster.addLayer(m);
         });
 
-        // Init Search Engine
         fuse = new Fuse(places, { keys: ['name'], threshold: 0.4 });
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Error loading data. Please check your internet connection.");
     });
 }
 
@@ -322,29 +324,33 @@ searchInput.addEventListener('keyup', function() {
             li.onclick = () => {
                 searchInput.value = ""; 
                 resultsList.style.display = 'none';
-                // Reveal Cluster and Select
-                markersCluster.zoomToShowLayer(p.markerObj, function() {
-                     handleLocationInput(L.latLng(p.lat, p.lon));
-                });    
+                const latlng = L.latLng(p.lat, p.lon);
+                map.setView(latlng, 18); 
+                handleLocationInput(latlng);       
             };
             resultsList.appendChild(li);
         });
     } else { resultsList.style.display = 'none'; }
 });
 
+// NEW: Clear Selection Function
+function clearSelection() {
+    selectionLayer.clearLayers();
+    currentSelectedPlace = null;
+    
+    // Hide results, show instruction
+    document.getElementById("result-content").style.display = "none";
+    document.getElementById("instruction").style.display = "block";
+    
+    // Optional: Reset values visually
+    document.getElementById("distance-info").innerText = "--";
+    document.getElementById("user-distance").innerText = "--";
+}
+
 function handleLocationInput(latlng) {
     selectionLayer.clearLayers(); 
 
-    // User Click Marker (Red)
-    const redIcon = L.icon({
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png', // Red is standard in this library? No, standard is blue. 
-        // We need a specific Red Icon URL for contrast
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-        iconSize: [25, 41], iconAnchor: [12, 41],
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-        shadowSize: [41, 41]
-    });
-    
+    // Apply the new smaller red icon here
     L.marker(latlng, {icon: redIcon}).addTo(selectionLayer);
 
     let nearest = null;
@@ -356,9 +362,10 @@ function handleLocationInput(latlng) {
     });
 
     if (nearest) {
+        // Update Global Selection
         currentSelectedPlace = nearest;
 
-        // Draw Line
+        // Visuals
         if (minDistance > 5) {
             let d = minDistance;
             let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
@@ -374,7 +381,7 @@ function handleLocationInput(latlng) {
             document.getElementById("distance-info").style.color = "green";
         }
 
-        // Update UI
+        // --- UPDATE INFO PANEL ---
         document.getElementById("instruction").style.display = "none";
         document.getElementById("result-content").style.display = "block";
         document.getElementById("nearest-name").innerText = nearest.name;
@@ -390,15 +397,9 @@ function handleLocationInput(latlng) {
             document.getElementById("user-distance").innerText = "--";
         }
 
+        // Calculate Crowd (Refactored to separate function)
         updateCrowdDisplay(nearest);
     }
-}
-
-function clearSelection() {
-    selectionLayer.clearLayers();
-    currentSelectedPlace = null;
-    document.getElementById("result-content").style.display = "none";
-    document.getElementById("instruction").style.display = "block";
 }
 
 function updateCrowdDisplay(place) {
