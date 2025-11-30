@@ -12,7 +12,7 @@
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
 
-    /* --- MARKER DOT STYLES --- */
+    /* --- MARKER DOT STYLES (RINGS) --- */
     .dot-marker {
         border-radius: 50%;
         border: 2px solid white;
@@ -32,13 +32,12 @@
         background-color: #c0392b;
         opacity: 1; 
         z-index: 1000 !important; 
-        border-width: 3px;
     }
 
     /* No Data Places (Grey & Faded) */
     .dot-grey {
-        background-color: #95a5a6; /* Neutral Grey */
-        opacity: 0.4; /* Low Opacity to fade out */
+        background-color: #95a5a6;
+        opacity: 0.4;
         border-color: #ecf0f1;
     }
 
@@ -52,7 +51,7 @@
     .header-title { font-weight: bold; letter-spacing: 0.5px; font-size: 1.2em; }
     .header-controls { display: flex; gap: 10px; align-items: center; }
 
-    /* --- MAP --- */
+    /* --- MAP CONTAINER --- */
     #map-wrapper { padding: 0; flex-grow: 1; position: relative; min-height: 0; }
     #map-container { height: 100%; width: 100%; border-radius: 0; overflow: hidden; position: relative; }
     #map { height: 100%; width: 100%; z-index: 1; }
@@ -107,6 +106,8 @@
         padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
         height: 100%; box-sizing: border-box; position: relative;
     }
+    
+    /* Layout Ratios */
     .section-info { flex-grow: 1; border-right: 1px solid #eee; min-width: 250px; }
     .section-weather { flex: 0 0 180px; width: 180px; border-right: 1px solid #eee; }
     .section-events { flex: 0 0 180px; width: 180px; }
@@ -124,16 +125,17 @@
     .placeholder-value { color: #ccc; font-weight: bold; font-size: 3.5em; margin: 0; line-height: 1;}
     .big-score { font-size: 3.5em; font-weight: bold; margin: 0; line-height: 1; }
 
+    /* Clear Button (Bold X) */
     .close-btn {
         position: absolute; top: 5px; left: 10px; font-size: 28px; font-weight: 900; 
         color: #999; cursor: pointer; line-height: 1; z-index: 20; transition: color 0.2s;
     }
     .close-btn:hover { color: #c0392b; }
 
+    /* Result Card Split */
     .result-top-half { height: 60%; width: 100%; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; position: relative; }
     .result-bottom-half { height: 40%; width: 100%; display: flex; border-top: 1px solid #eee; padding-top: 5px; box-sizing: border-box; gap: 10px; margin-top: auto; }
 
-    /* Tag Styling */
     .info-left-tags { flex: 1; display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-content: center; gap: 5px; border-right: 1px solid #eee; padding-right: 10px; overflow-y: auto; }
     .tag { background: #f0f2f5; color: #555; font-size: 0.8em; padding: 4px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap; text-transform: capitalize; }
     
@@ -141,6 +143,7 @@
     .dist-subitem { flex: 1; text-align: center; }
 
     #weather-select { border: 1px solid #ddd; border-radius: 6px; padding: 5px; font-family: inherit; color: #333; font-weight: bold; cursor: pointer; width: 100%; text-align: center; margin-top: 5px; box-sizing: border-box; height: 35px; }
+    
     .events-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; }
     .events-btn-row { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 5px; }
     .evt-btn { border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9; font-weight: bold; color: #333; cursor: pointer; height: 35px; width: 35px; display: flex; align-items: center; justify-content: center; }
@@ -198,6 +201,7 @@
         </div>
 
         <div id="unified-active-state">
+            
             <div class="unified-section section-info">
                 <div class="result-top-half">
                     <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
@@ -251,6 +255,7 @@
                     </div>
                 </div>
             </div>
+
         </div> 
     </div>
 
@@ -268,7 +273,7 @@
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
-// IMPORTANT: Ensure your generated CSV is named 'places_database.csv'
+// IMPORTANT: Point this to your generated CSV
 const CSV_URL = "places_database.csv";
 
 let map;
@@ -350,15 +355,28 @@ function fetchCSV() {
     .then(text => {
         const lines = text.split("\n").slice(1);
         places = lines.map(l => {
+            // ROBUST CSV PARSER: Handles names with spaces and commas correctly
             const c = l.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [];
-            const cleanC = c.map(val => val.replace(/^"|"$/g, '').trim());
+            
+            // Clean up quotes from matched strings and fix double-double quotes
+            const cleanC = c.map(val => {
+                let s = val.replace(/^"|"$/g, '');
+                return s.replace(/""/g, '"').trim();
+            });
 
             if (cleanC.length < 3) return null; 
             
-            // Indices: 0=name, 1=lat, 2=lon, 3=gid, 4=attr, 5=pop_times
+            // MAP COLUMNS (Based on places_database.csv):
+            // 0: Name
+            // 1: Latitude
+            // 2: Longitude
+            // 3: Google ID (unused)
+            // 4: Attributes (JSON)
+            // 5: Popular Times (JSON)
+            
             let name = cleanC[0] || "Unknown";
-            let lat = parseFloat(cleanC[1]);
-            let lon = parseFloat(cleanC[2]);
+            let lat = parseFloat(cleanC[1]); 
+            let lon = parseFloat(cleanC[2]); 
             let attr = cleanC[4] || "[]";
             let pop = cleanC[5] || "[]";
 
@@ -372,11 +390,10 @@ function fetchCSV() {
         }).filter(x => x && !isNaN(x.lat));
         
         places.forEach(p => {
-            // Determine Icon based on Data Availability
+            // Determine Icon (Grey if no data, Green if valid)
             let hasData = false;
             try {
-                // Check if popular_times is valid JSON array with content
-                if (p.popular_times && p.popular_times !== "[]" && p.popular_times.length > 5) {
+                if (p.popular_times && p.popular_times !== "[]" && p.popular_times.length > 20) {
                     hasData = true;
                 }
             } catch (e) {}
@@ -457,6 +474,7 @@ function handleLocationInput(latlng) {
         currentSelectedPlace = nearest;
         currentEventsValue = 0; 
         
+        // Show Active UI
         document.getElementById("unified-empty-state").style.display = "none";
         document.getElementById("unified-active-state").style.display = "flex";
         document.getElementById("lbl-crowd").style.display = "block";
@@ -477,11 +495,11 @@ function handleLocationInput(latlng) {
         document.getElementById("nearest-name").innerText = nearest.name;
         document.getElementById("events-display").innerText = currentEventsValue;
 
+        // Attributes Parsing
         const attrContainer = document.getElementById("attributes-container");
         attrContainer.innerHTML = ""; 
         try {
-            let cleanJson = nearest.attributes.replace(/'/g, '"');
-            let attrs = JSON.parse(cleanJson);
+            let attrs = JSON.parse(nearest.attributes);
             
             if(!attrs || attrs.length === 0) {
                 attrContainer.innerHTML = '<span class="tag" style="color:#aaa;">No Attributes</span>';
@@ -519,15 +537,15 @@ function updateCrowdDisplay() {
     // 1. Get Base Crowd from Popular Times
     let baseCrowd = 0;
     try {
-        let cleanPop = currentSelectedPlace.popular_times.replace(/'/g, '"');
-        let schedule = JSON.parse(cleanPop);
+        let schedule = JSON.parse(currentSelectedPlace.popular_times);
         
         if (schedule.length > 0) {
             const now = new Date();
-            // Map JS Day (0=Sun) to Python/Populartimes Day (0=Mon usually)
+            // JS Day: 0=Sun. Populartimes: 0=Mon. Map it:
             let dayIndex = now.getDay() === 0 ? 6 : now.getDay() - 1; 
             let hourIndex = now.getHours();
             
+            // Look for matching day by name or index
             let dayData = schedule.find(d => d.name && ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].indexOf(d.name) === dayIndex);
             if (!dayData && schedule[dayIndex]) dayData = schedule[dayIndex];
 
