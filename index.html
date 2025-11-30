@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Smart Guide - Blue Clusters</title>
+<title>Barcelona Smart Guide - Walking Fix</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -17,19 +17,18 @@
     .marker-cluster-small,
     .marker-cluster-medium,
     .marker-cluster-large {
-        background-color: rgba(41, 128, 185, 0.4); /* Outer ring transparent blue */
+        background-color: rgba(41, 128, 185, 0.4);
     }
 
     .marker-cluster-small div,
     .marker-cluster-medium div,
     .marker-cluster-large div {
-        background-color: rgba(41, 128, 185, 0.8); /* Inner circle solid blue */
+        background-color: rgba(41, 128, 185, 0.8);
         color: white;
         font-weight: bold;
-        border-radius: 50%; /* Ensure perfectly round */
+        border-radius: 50%;
     }
     /* ---------------------------------------- */
-
 
     header { 
         background: #2c3e50; color: #fff; padding: 15px; 
@@ -135,7 +134,7 @@
             <div class="data-item">
                 <span class="label">Distance Info</span>
                 <div style="margin-bottom:8px;">
-                    <small style="color:#aaa;">Walking Path:</small><br> 
+                    <small style="color:#aaa;">Distance from Selection:</small><br> 
                     <span id="distance-info" style="font-weight:bold;">Calculating...</span>
                 </div>
                 <div>
@@ -273,7 +272,6 @@ searchInput.addEventListener('keyup', function() {
 });
 
 function handleLocationInput(latlng) {
-    // 1. Reset map layers
     selectionLayer.clearLayers(); 
     if (routingControl) {
         map.removeControl(routingControl);
@@ -295,7 +293,7 @@ function handleLocationInput(latlng) {
     });
 
     if (nearest) {
-        document.getElementById("distance-info").innerText = "Calculating path...";
+        document.getElementById("distance-info").innerText = "Calculating...";
         
         if (minDistance > 10) {
             routingControl = L.Routing.control({
@@ -303,10 +301,10 @@ function handleLocationInput(latlng) {
                     L.latLng(latlng.lat, latlng.lng),
                     L.latLng(nearest.lat, nearest.lon)
                 ],
-                // Walking Mode
-                router: L.Routing.osrmv1({
+                // FORCE WALKING MODE (Ignore traffic rules)
+                router: new L.Routing.OSRMv1({
                     serviceUrl: 'https://router.project-osrm.org/route/v1',
-                    profile: 'foot'
+                    profile: 'foot' // OSRM 'foot' profile allows walking against traffic
                 }),
                 routeWhileDragging: false,
                 draggableWaypoints: false,
