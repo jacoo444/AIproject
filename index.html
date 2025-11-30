@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Barcelona Smart Tourist Guide</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+<!-- Minimal styling -->
+<style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f3f3f3; }
+    header { background: #1976d2; color: #fff; padding: 16px; text-align: center; }
+    .switcher { display: flex; background: #eee; }
+    .switcher button {
+        flex: 1; padding: 14px; border: none; cursor: pointer;
+        font-size: 16px; background: #ddd;
+    }
+    .switcher button.active {
+        background: #1976d2; color: #fff; font-weight: bold;
+    }
+    #map, #searchArea { display: none; }
+    #map { height: 60vh; }
+    .content { padding: 16px; }
+    .card {
+        background: #fff; padding: 15px; margin-top: 16px;
+        border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+</style>
+</head>
+
+<body>
+
+<header>
+    🌆 Barcelona Smart Tourist Guide
+</header>
+
+<div class="switcher">
+    <button id="btnMap" class="active">🗺 Map</button>
+    <button id="btnSearch">⌨️ Search</button>
+</div>
+
+<div id="map"></div>
+
+<div id="searchArea" class="content">
+    <label>Type a destination:</label><br>
+    <input id="searchInput" type="text" placeholder="Sagrada Família..." style="width:70%;">
+    <button onclick="searchPlace()">Search</button>
+</div>
+
+<div class="content">
+    <label>Weather:</label>
+    <select id="weather">
+        <option>Sunny</option>
+        <option>Cloudy</option>
+        <option>Rainy</option>
+    </select>
+</div>
+
+<div id="results" class="content"></div>
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- Fuse.js (fuzzy search) -->
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+
+<script>
+// TODO: Change this to your GitHub Pages CSV raw URL
+const CSV_URL = "https://raw.githubusercontent.com/<USER>/<REPO>/main/CL.csv";
+
+let places = [];
+let map, markers = [];
+const resultsDiv = document.getElementById("results");
+
+// UI toggle
+const mapDiv = document.getElementById("map");
+const searchDiv = document.getElementById("searchArea");
+document.getElementById("btnMap").onclick = () => setMode("map");
+document.getElementById("btnSearch").onclick = () => setMode("search");
+
+function setMode(mode) {
+    document.getElementById("btnMap").classList.toggle("active", mode === "map");
+    document.getElementById("btnSearch").classList.toggle("active", mode === "search");
+    mapDiv.style.display = (mode === "map") ? "block" : "none";
+    searchDiv.style.display = (mode === "search") ? "block" : "none";
+    if (mode === "map") setTimeout(() => map.invalidateSize(), 300);
+}
+
+// Load CSV and initialize everything
+fetch(CSV_URL)
+.then(res => res.text())
+.then(text => {
+    places = parseCSV(text);
+
+    initMap();
+    addMarkers();
+    setMode("map");
+});
+
+// CSV parsing
+function parseCSV(data) {
+    const lines = data.split("\n").slice(1);
+    return lines.map(l => {
+        const c = l.split(",");
+        if (c.length < 6) return null;
+        return {
+            name: c[0],
+            lat: parseFloat(c[1]),
+            lon: parseFloat(c[2]),
+            crowd: parseFloat(c[3]),
+            events: parseFloat(c[4])
+        };
+    }).filter(x => x);
+}
+
+// Map + Markers
+function initMap() {
+    map = L.map("map").setView([41.3851, 2.1734], 13);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+}
+
+function addMarkers() {
+    places.forEach(p => {
+        let marker = L.marker([p.lat, p.lon]).addTo(map);
+        marker.bindPopup(p.name);
+        marker.on("click", () => predictCrowd(p));
+        markers.push(marker);
+    });
+}
+
+// Prediction
+function predictCrowd(place) {
+    const weather = document.getElementById("weather").value;
+    let modifier = weather === "Sunny" ? 1.4 : (weather === "Rainy" ? 0.7 : 1);
+
+    let estimate = Math.min(100, (place.crowd + place.events) * modifier);
+
+    let output = `
+        <div class="card">
+        <h3>${place.name}</h3>
+        <p><strong>Estimated Crowd:</strong> ${estimate.toFixed(0)} / 100</p>
+    `;
+
+    if (estimate > 70) {
+        output += `<p style="color:orange;">⚠️ High congestion expected!</p>`;
+        output += recommend(place);
+    }
+
+    output += "</div>";
+    resultsDiv.innerHTML = output;
+}
+
+// Recommendations
+function recommend(current) {
+    const sorted = places
+        .filter(p => p.name !== current.name)
+        .sort((a,b) => (a.crowd + a.events) - (b.crowd + b.events))
+        .slice(0, 3);
+
+    let html = `<h4>🏖 Better Alternatives:</h4><ul>`;
+    sorted.forEach(p => html += `<li>${p.name}</li>`);
+    html += "</ul>";
+    return html;
+}
+
+// Search mode
+function searchPlace() {
+    let input = document.getElementById("searchInput").value.trim();
+    if (!input) return;
+    
+    const fuse = new Fuse(places, { keys: ["name"], threshold: 0.3 });
+    const matches = fuse.search(input);
+    if (!matches.length) {
+        resultsDiv.innerHTML = `<p>❌ No match found</p>`;
+        return;
+    }
+    predictCrowd(matches[0].item);
+}
+</script>
+
+</body>
+</html>
