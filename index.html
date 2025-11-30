@@ -18,9 +18,18 @@
         background-color: rgba(41, 128, 185, 0.8); color: white; font-weight: bold; border-radius: 50%;
     }
 
+    /* --- FLOATING HEADER --- */
     header { 
-        background: #2c3e50; color: #fff; padding: 15px; 
-        text-align: center; font-weight: bold; letter-spacing: 1px;
+        background: white; 
+        color: #333; 
+        padding: 15px 20px; 
+        margin: 15px 15px 0 15px; /* Floating margins */
+        border-radius: 15px;      /* Rounded corners */
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        text-align: left;         /* Left aligned */
+        font-weight: bold; 
+        letter-spacing: 0.5px;
+        font-size: 1.2em;
         flex-shrink: 0;
     }
 
@@ -29,7 +38,7 @@
         padding: 15px 15px 0 15px;
         flex-grow: 1;
         position: relative;
-        min-height: 400px;
+        min-height: 350px;
     }
 
     #map-container { 
@@ -83,11 +92,9 @@
         display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
 
-    /* Card Flex Ratios */
-    .card-info { flex: 2; position: relative; min-width: 300px; } /* Wider info card */
-    .card-small { flex: 1; max-width: 180px; min-width: 140px; } /* Weather, Events, Crowd */
+    .card-info { flex: 2; position: relative; min-width: 300px; } 
+    .card-small { flex: 1; max-width: 180px; min-width: 140px; } 
 
-    /* Typography */
     .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:5px;}
     .value { font-weight: bold; font-size: 1.1em; color: #333; }
     .highlight { color: #2c3e50; font-size: 1.3em; font-weight: bold; margin: 5px 0; }
@@ -101,14 +108,12 @@
     }
     .close-btn:hover { color: #c0392b; }
 
-    /* Weather Select */
     #weather-select {
         border: 1px solid #ddd; border-radius: 6px; padding: 5px;
         font-family: inherit; color: #333; font-weight: bold; cursor: pointer;
         width: 100%; text-align: center; margin-top: 5px;
     }
 
-    /* Colors */
     .status-green { color: #27ae60; }
     .status-orange { color: #f39c12; }
     .status-red { color: #c0392b; }
@@ -122,23 +127,28 @@
         margin-top: 10px;
         border-top: 1px solid #eee;
         padding-top: 10px;
+        gap: 10px; /* Gap between left and right column */
     }
     
-    /* Left side: Tags */
+    /* Left side: Tags (Side by Side) */
     .info-left-tags {
         flex: 1;
         display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: flex-start;
+        flex-direction: row; /* Horizontal */
+        flex-wrap: wrap;     /* Allow wrapping */
+        justify-content: center; /* Center them */
+        align-content: center;
+        gap: 5px;            /* Spacing between tags */
         border-right: 1px solid #eee;
         padding-right: 10px;
     }
+    
     .tag {
         background: #f0f2f5; color: #555; 
         font-size: 0.8em; padding: 4px 8px; 
-        border-radius: 4px; margin-bottom: 4px; 
+        border-radius: 4px; 
         font-weight: 600;
+        white-space: nowrap; /* Prevent breaking inside tag */
     }
 
     /* Right side: Distances */
@@ -155,7 +165,8 @@
         .card { width: 100%; max-width: none; box-sizing: border-box;}
         #map-wrapper { min-height: 40vh; }
         .info-split-layout { flex-direction: column; gap: 10px; }
-        .info-left-tags { border-right: none; border-bottom: 1px solid #eee; padding-bottom: 10px; width: 100%; align-items: center; flex-direction: row; gap: 5px; justify-content: center;}
+        .info-left-tags { border-right: none; border-bottom: 1px solid #eee; padding-bottom: 10px; width: 100%; padding-right:0; }
+        .info-right-dist { padding-left: 0; }
     }
 </style>
 </head>
@@ -163,7 +174,7 @@
 <body>
 
 <header>
-    📍 Barcelona Smart Tourist Guide
+    ✨ Barcelona Smart Tourist Guide
 </header>
 
 <div id="map-wrapper">
@@ -202,7 +213,7 @@
 
                 <div class="info-right-dist">
                     <div class="dist-subitem">
-                        <small style="color:#aaa;">Straight Line</small><br>
+                        <small style="color:#aaa;">From Selection</small><br>
                         <span id="distance-info" style="font-weight:bold;">--</span>
                     </div>
                     <div class="dist-subitem">
@@ -389,19 +400,14 @@ function clearSelection() {
     selectionLayer.clearLayers();
     currentSelectedPlace = null;
     
-    // UI Resets - Info Card
+    // UI Resets
     document.getElementById("result-content").style.display = "none";
     document.getElementById("instruction").style.display = "block";
-    
-    // UI Resets - Weather Card
     document.getElementById("weather-content").style.display = "none";
     document.getElementById("weather-placeholder").style.display = "block";
-
-    // UI Resets - Events Card
     document.getElementById("events-score").style.display = "none";
     document.getElementById("events-placeholder").style.display = "block";
 
-    // UI Resets - Crowd Card
     const crowdEl = document.getElementById("crowd-score");
     const statusEl = document.getElementById("crowd-status");
     crowdEl.innerText = "--";
@@ -426,15 +432,12 @@ function handleLocationInput(latlng) {
     if (nearest) {
         currentSelectedPlace = nearest;
 
-        // Visuals
         if (minDistance > 5) {
             let d = minDistance;
             let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
-            
             L.polyline([latlng, [nearest.lat, nearest.lon]], {
                 color: '#e74c3c', weight: 3, opacity: 0.7, dashArray: '10, 10'
             }).addTo(selectionLayer);
-            
             document.getElementById("distance-info").innerText = dString;
             document.getElementById("distance-info").style.color = "black";
         } else {
@@ -442,22 +445,18 @@ function handleLocationInput(latlng) {
             document.getElementById("distance-info").style.color = "green";
         }
 
-        // --- UPDATE INFO PANEL ---
+        // Show Panels
         document.getElementById("instruction").style.display = "none";
         document.getElementById("result-content").style.display = "block";
         document.getElementById("nearest-name").innerText = nearest.name;
-        
-        // --- SHOW WEATHER PANEL ---
         document.getElementById("weather-placeholder").style.display = "none";
         document.getElementById("weather-content").style.display = "block";
-
-        // --- SHOW EVENTS PANEL ---
         document.getElementById("events-placeholder").style.display = "none";
+        
         const eventEl = document.getElementById("events-score");
         eventEl.style.display = "block";
         eventEl.innerText = Math.round(nearest.events);
 
-        // GPS Distance
         if (userRealLocation) {
             const distFromUser = map.distance(userRealLocation, [nearest.lat, nearest.lon]);
             let distStringUser = distFromUser > 1000 
@@ -468,7 +467,6 @@ function handleLocationInput(latlng) {
             document.getElementById("user-distance").innerText = "--";
         }
 
-        // Calculate Crowd
         updateCrowdDisplay(nearest);
     }
 }
@@ -487,8 +485,7 @@ function updateCrowdDisplay(place) {
     const statusEl = document.getElementById("crowd-status");
     crowdEl.innerText = estimatedCrowd;
     crowdEl.className = ""; statusEl.className = "";
-    
-    statusEl.style.color = ""; // reset inline color
+    statusEl.style.color = ""; 
 
     if (estimatedCrowd < 40) {
         crowdEl.classList.add("status-green");
