@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Pro Map - Clustering</title>
+<title>Barcelona Pro Map - Crowd Logic</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
@@ -32,72 +32,74 @@
         align-items: flex-start;
     }
 
-    /* Locate Me Button */
+    /* Buttons & Search */
     .gps-btn {
         background: white; border: none; padding: 10px; 
         border-radius: 8px; cursor: pointer;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        font-size: 18px;
-        height: 42px; width: 42px;
+        font-size: 18px; height: 42px; width: 42px;
         display: flex; align-items: center; justify-content: center;
     }
     .gps-btn:hover { background: #f0f8ff; color: #0078d7; }
 
-    /* Search Box */
     .search-box {
-        background: white;
-        padding: 5px;
-        border-radius: 8px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        width: 250px;
+        background: white; padding: 5px; border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2); width: 250px;
     }
+    .search-box input { width: 100%; border: none; outline: none; padding: 8px; font-size: 14px; }
 
-    .search-box input {
-        width: 100%; border: none; outline: none; padding: 8px; font-size: 14px;
-    }
-
-    /* Search Results */
     #search-results {
         list-style: none; padding: 0; margin: 0;
-        max-height: 200px; overflow-y: auto;
-        display: none; border-top: 1px solid #eee;
+        max-height: 200px; overflow-y: auto; display: none; border-top: 1px solid #eee;
     }
-
     #search-results li {
         padding: 10px; border-bottom: 1px solid #f9f9f9; cursor: pointer; font-size: 13px;
     }
     #search-results li:hover { background-color: #f0f8ff; color: #0078d7; }
 
-    /* Info Panel */
+    /* Info Panel Structure */
     .info-panel {
-        max-width: 600px; margin: 0 auto; padding: 20px;
+        max-width: 800px; margin: 0 auto; padding: 15px;
         background: white; border-radius: 0 0 8px 8px; 
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-        text-align: center;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.05); text-align: center;
     }
 
+    /* 3-Column Grid */
     .data-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 15px;
+        grid-template-columns: 1fr 1fr 1fr; /* Equal width columns */
+        gap: 10px;
         margin-top: 15px;
         border-top: 1px solid #eee;
-        padding-top: 20px;
+        padding-top: 15px;
+        align-items: center;
     }
 
-    .data-item { text-align: center; }
-    .label { color: #888; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px; }
-    .value { font-weight: bold; font-size: 1.1em; color: #333; margin-top: 4px; display: block;}
+    .data-item { 
+        padding: 5px;
+    }
     
-    .highlight { color: #e74c3c; font-size: 1.4em; }
+    /* Borders for separation */
+    .data-item:nth-child(2) { border-left: 1px solid #eee; border-right: 1px solid #eee; }
+
+    .label { color: #888; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:4px;}
+    .value { font-weight: bold; font-size: 1.1em; color: #333; }
+    
+    .highlight { color: #2c3e50; font-size: 1.4em; }
     .blue-highlight { color: #0078d7; }
+    
+    /* Dynamic Colors */
+    .status-green { color: #27ae60; }
+    .status-orange { color: #f39c12; }
+    .status-red { color: #c0392b; }
+
 </style>
 </head>
 
 <body>
 
 <header>
-    📍 Barcelona Smart Locator
+    📍 Barcelona Smart Guide
 </header>
 
 <div id="map-container">
@@ -105,7 +107,6 @@
     
     <div class="controls-wrapper">
         <button class="gps-btn" onclick="triggerGPS()" title="Recenter on Me">📍</button>
-        
         <div class="search-box">
             <input type="text" id="searchInput" placeholder="Search attractions...">
             <ul id="search-results"></ul>
@@ -116,22 +117,39 @@
 <div class="info-panel">
     <div id="instruction" style="color:#777;">
         <span id="gps-status">Locating you...</span><br>
-        <small>Click map or search to measure distance.</small>
+        <small>Select an attraction to see distances and crowd predictions.</small>
     </div>
     
     <div id="result-content" style="display:none;">
-        <h3 class="highlight" id="nearest-name" style="margin:0;">--</h3>
+        <h3 class="highlight" id="nearest-name" style="margin:0; margin-bottom:5px;">--</h3>
         
         <div class="data-grid">
+            
             <div class="data-item">
-                <span class="label">Distance from Selection</span>
-                <span class="value" id="distance-info">--</span>
+                <span class="label">Current Weather</span>
+                <span id="weather-icon" style="font-size:1.8em;">--</span><br>
+                <span id="weather-text" class="value" style="font-size:0.9em;">--</span>
+            </div>
+
+            <div class="data-item">
+                <span class="label">Distance Info</span>
+                <div style="margin-bottom:4px;">
+                    <small style="color:#aaa;">From Selection:</small> 
+                    <span id="distance-info" style="font-weight:bold;">--</span>
+                </div>
+                <div>
+                    <small style="color:#aaa;">From You:</small> 
+                    <span id="user-distance" class="blue-highlight" style="font-weight:bold;">--</span>
+                </div>
             </div>
             
-            <div class="data-item" style="border-left:1px solid #eee;">
-                <span class="label">🚶 Distance from You</span>
-                <span class="value blue-highlight" id="user-distance">Unknown</span>
+            <div class="data-item">
+                <span class="label">Expected Crowd</span>
+                <span id="crowd-score" style="font-size:1.6em; font-weight:bold;">--</span>
+                <span style="font-size:0.8em; color:#aaa;">/ 100</span><br>
+                <span id="crowd-status" style="font-weight:bold; font-size:0.8em;">--</span>
             </div>
+
         </div>
     </div>
 </div>
@@ -147,32 +165,37 @@ let map;
 let places = [];        
 let selectionLayer = L.layerGroup(); 
 let gpsLayer = L.layerGroup();
-let markersCluster = L.markerClusterGroup(); // Initialize Cluster Group
+let markersCluster = L.markerClusterGroup(); 
 let userRealLocation = null; 
 let fuse; 
 
+// Simulated Weather State
+let weatherState = "Sunny"; 
+
 document.addEventListener("DOMContentLoaded", () => {
+    generateWeather(); // Pick random weather on load
     initMap();
     fetchCSV();
     triggerGPS();
 });
 
+// 1. Random Weather Generator
+function generateWeather() {
+    const types = ["Sunny", "Cloudy", "Rainy"];
+    weatherState = types[Math.floor(Math.random() * types.length)];
+}
+
 function initMap() {
     map = L.map("map").setView([41.3851, 2.1734], 13);
-
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; CARTO', maxZoom: 20
     }).addTo(map);
 
-    // Add the Cluster Group to map (it handles the blue markers now)
     map.addLayer(markersCluster);
-    
     selectionLayer.addTo(map);
     gpsLayer.addTo(map);
 
-    map.on('click', function(e) {
-        handleLocationInput(e.latlng);
-    });
+    map.on('click', function(e) { handleLocationInput(e.latlng); });
 }
 
 function triggerGPS() {
@@ -187,7 +210,6 @@ function triggerGPS() {
             L.circleMarker(userRealLocation, {
                 radius: 8, fillColor: "#3388ff", color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.8
             }).addTo(gpsLayer).bindPopup("You are here").openPopup();
-            
             map.setView(userRealLocation, 15);
             document.getElementById("gps-status").innerText = "GPS Active 📍";
         },
@@ -203,15 +225,16 @@ function fetchCSV() {
         const lines = text.split("\n").slice(1);
         places = lines.map(l => {
             const c = l.split(",");
-            if (c.length < 3) return null; 
+            if (c.length < 5) return null; // Ensure we have cols for crowd/events
             return {
                 name: c[0].trim(),
                 lat: parseFloat(c[1]),
-                lon: parseFloat(c[2])
+                lon: parseFloat(c[2]),
+                crowd: parseFloat(c[3]) || 0, // Fallback if empty
+                events: parseFloat(c[4]) || 0
             };
         }).filter(x => x && !isNaN(x.lat));
         
-        // Add Markers to the CLUSTER GROUP instead of directly to map
         places.forEach(p => {
             const m = L.marker([p.lat, p.lon]);
             m.bindPopup(`<b>${p.name}</b>`);
@@ -240,7 +263,6 @@ searchInput.addEventListener('keyup', function() {
                 searchInput.value = ""; 
                 resultsList.style.display = 'none';
                 const latlng = L.latLng(p.lat, p.lon);
-                // We must use 'flyTo' or setView. If clustered, we might need to zoom in to see it.
                 map.setView(latlng, 18); 
                 handleLocationInput(latlng);       
             };
@@ -249,6 +271,7 @@ searchInput.addEventListener('keyup', function() {
     } else { resultsList.style.display = 'none'; }
 });
 
+// CORE LOGIC + CROWD CALCULATION
 function handleLocationInput(latlng) {
     selectionLayer.clearLayers(); 
 
@@ -277,8 +300,9 @@ function handleLocationInput(latlng) {
         document.getElementById("result-content").style.display = "block";
         document.getElementById("nearest-name").innerText = nearest.name;
         
+        // --- 1. Distances ---
         if (minDistance < 5) {
-            document.getElementById("distance-info").innerText = "Exact match (0m)";
+            document.getElementById("distance-info").innerText = "0 m";
             document.getElementById("distance-info").style.color = "green";
         } else {
             document.getElementById("distance-info").innerText = `${Math.round(minDistance)} m`;
@@ -292,7 +316,46 @@ function handleLocationInput(latlng) {
                 : Math.round(distFromUser) + " m";
             document.getElementById("user-distance").innerText = distString;
         } else {
-            document.getElementById("user-distance").innerText = "Enable GPS";
+            document.getElementById("user-distance").innerText = "--";
+        }
+
+        // --- 2. Update Weather UI (Left Box) ---
+        let wIcon = "☀️";
+        if(weatherState === "Cloudy") wIcon = "☁️";
+        if(weatherState === "Rainy") wIcon = "🌧️";
+        
+        document.getElementById("weather-icon").innerText = wIcon;
+        document.getElementById("weather-text").innerText = weatherState;
+
+        // --- 3. Calculate Crowd (Right Box) ---
+        let modifier = 1;
+        if (weatherState === "Sunny") modifier = 1.2; // People go out
+        if (weatherState === "Rainy") modifier = 0.7; // People stay inside
+        
+        let estimatedCrowd = Math.round((nearest.crowd + nearest.events) * modifier);
+        if (estimatedCrowd > 100) estimatedCrowd = 100; // Cap at 100
+        
+        const crowdEl = document.getElementById("crowd-score");
+        const statusEl = document.getElementById("crowd-status");
+        
+        crowdEl.innerText = estimatedCrowd;
+        
+        // Color logic
+        crowdEl.className = ""; // Reset class
+        statusEl.className = "";
+        
+        if (estimatedCrowd < 40) {
+            crowdEl.classList.add("status-green");
+            statusEl.classList.add("status-green");
+            statusEl.innerText = "Low";
+        } else if (estimatedCrowd < 75) {
+            crowdEl.classList.add("status-orange");
+            statusEl.classList.add("status-orange");
+            statusEl.innerText = "Moderate";
+        } else {
+            crowdEl.classList.add("status-red");
+            statusEl.classList.add("status-red");
+            statusEl.innerText = "High Congestion";
         }
     }
 }
