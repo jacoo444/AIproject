@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Smart Guide - Small Markers</title>
+<title>Barcelona Smart Guide - Weather Control</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; }
@@ -84,10 +84,18 @@
     .status-orange { color: #f39c12; }
     .status-red { color: #c0392b; }
 
+    /* Dropdown Styling */
     #weather-select {
-        border: 1px solid #ddd; border-radius: 4px; padding: 5px;
-        font-family: inherit; color: #333; font-weight: bold; cursor: pointer;
-        margin-top: 5px; width: 100px; text-align: center;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 5px;
+        font-family: inherit;
+        color: #333;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 5px;
+        width: 100px;
+        text-align: center;
     }
 </style>
 </head>
@@ -153,7 +161,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
@@ -163,26 +171,17 @@ let map;
 let places = [];        
 let selectionLayer = L.layerGroup(); 
 let gpsLayer = L.layerGroup();
-let markersCluster;
+let markersCluster = L.markerClusterGroup(); 
 let userRealLocation = null; 
 let fuse; 
-let currentSelectedPlace = null; 
-
-// CUSTOM SMALLER ICON
-const smallBlueIcon = L.icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    iconSize: [12, 20],      // 50% smaller (default is 25, 41)
-    iconAnchor: [6, 20],     // Adjusted anchor
-    popupAnchor: [1, -34],
-    shadowSize: [20, 20]     // Smaller shadow
-});
+let currentSelectedPlace = null; // Store current place to recalculate crowd on weather change
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
     fetchCSV();
     triggerGPS();
     
+    // Listen for weather changes
     document.getElementById("weather-select").addEventListener("change", function() {
         updateWeatherIcon();
         if(currentSelectedPlace) {
@@ -205,11 +204,6 @@ function initMap() {
         attribution: '&copy; CARTO', maxZoom: 20
     }).addTo(map);
 
-    // LESS AGGRESSIVE CLUSTERING (maxClusterRadius: 30 instead of 80)
-    markersCluster = L.markerClusterGroup({
-        maxClusterRadius: 30 
-    });
-    
     map.addLayer(markersCluster);
     selectionLayer.addTo(map);
     gpsLayer.addTo(map);
@@ -245,23 +239,20 @@ function fetchCSV() {
         places = lines.map(l => {
             const c = l.split(",");
             if (c.length < 5) return null; 
-            
-            // Use the SMALL ICON here
-            const m = L.marker([parseFloat(c[1]), parseFloat(c[2])], { icon: smallBlueIcon });
-            
-            m.on('click', () => handleLocationInput(L.latLng(parseFloat(c[1]), parseFloat(c[2]))));
-            
-            markersCluster.addLayer(m);
-
             return {
                 name: c[0].trim(),
                 lat: parseFloat(c[1]),
                 lon: parseFloat(c[2]),
                 crowd: parseFloat(c[3]) || 0, 
-                events: parseFloat(c[4]) || 0,
-                markerObj: m 
+                events: parseFloat(c[4]) || 0
             };
         }).filter(x => x && !isNaN(x.lat));
+        
+        places.forEach(p => {
+            const m = L.marker([p.lat, p.lon]);
+            m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
+            markersCluster.addLayer(m);
+        });
 
         fuse = new Fuse(places, { keys: ['name'], threshold: 0.4 });
     });
@@ -284,6 +275,7 @@ searchInput.addEventListener('keyup', function() {
                 searchInput.value = ""; 
                 resultsList.style.display = 'none';
                 const latlng = L.latLng(p.lat, p.lon);
+                map.setView(latlng, 18); 
                 handleLocationInput(latlng);       
             };
             resultsList.appendChild(li);
@@ -292,7 +284,6 @@ searchInput.addEventListener('keyup', function() {
 });
 
 function handleLocationInput(latlng) {
-    // 1. Immediate Visual Update
     selectionLayer.clearLayers(); 
 
     const redIcon = L.icon({
@@ -301,7 +292,6 @@ function handleLocationInput(latlng) {
     });
     L.marker(latlng, {icon: redIcon}).addTo(selectionLayer);
 
-    // 2. Find Nearest
     let nearest = null;
     let minDistance = Infinity;
 
@@ -311,9 +301,26 @@ function handleLocationInput(latlng) {
     });
 
     if (nearest) {
+        // Update Global Selection
         currentSelectedPlace = nearest;
-        
-        // 3. Update Text Info
+
+        // Visuals
+        if (minDistance > 5) {
+            let d = minDistance;
+            let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
+            
+            L.polyline([latlng, [nearest.lat, nearest.lon]], {
+                color: '#e74c3c', weight: 3, opacity: 0.7, dashArray: '10, 10'
+            }).addTo(selectionLayer);
+            
+            document.getElementById("distance-info").innerText = dString;
+            document.getElementById("distance-info").style.color = "black";
+        } else {
+            document.getElementById("distance-info").innerText = "0 m";
+            document.getElementById("distance-info").style.color = "green";
+        }
+
+        // --- UPDATE INFO PANEL ---
         document.getElementById("instruction").style.display = "none";
         document.getElementById("result-content").style.display = "block";
         document.getElementById("nearest-name").innerText = nearest.name;
@@ -328,40 +335,9 @@ function handleLocationInput(latlng) {
         } else {
             document.getElementById("user-distance").innerText = "--";
         }
-        
-        // Crowd
+
+        // Calculate Crowd (Refactored to separate function)
         updateCrowdDisplay(nearest);
-
-        // 4. Handle Visual Line & Clustering
-        const drawLine = () => {
-             if (minDistance > 5) {
-                let d = minDistance;
-                let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
-                
-                L.polyline([latlng, [nearest.lat, nearest.lon]], {
-                    color: '#e74c3c', weight: 3, opacity: 0.7, dashArray: '10, 10'
-                }).addTo(selectionLayer);
-                
-                document.getElementById("distance-info").innerText = dString;
-                document.getElementById("distance-info").style.color = "black";
-            } else {
-                document.getElementById("distance-info").innerText = "0 m";
-                document.getElementById("distance-info").style.color = "green";
-            }
-        };
-
-        // If the marker is hidden in a cluster, reveal it first
-        const visibleParent = markersCluster.getVisibleParent(nearest.markerObj);
-        
-        if (visibleParent && visibleParent !== nearest.markerObj) {
-            // It's inside a cluster -> Zoom to it
-            markersCluster.zoomToShowLayer(nearest.markerObj, function() {
-                drawLine();
-            });
-        } else {
-            // It's already visible -> Just draw line
-            drawLine();
-        }
     }
 }
 
