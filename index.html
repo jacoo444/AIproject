@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script> <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 
 <style>
@@ -35,11 +35,10 @@
         display: flex; align-items: center; justify-content: space-between; 
         flex-wrap: wrap; gap: 10px;
     }
-    
-    .header-left { display: flex; align-items: center; gap: 15px; }
     .header-title { font-weight: bold; letter-spacing: 0.5px; font-size: 1.2em; }
-
-    /* TIME INPUTS */
+    .header-left { display: flex; align-items: center; gap: 15px; }
+    
+    /* TIME CONTROLS */
     .time-group {
         display: flex; gap: 5px; align-items: center;
         background: #f8f9fa; border: 1px solid #ddd; padding: 3px 8px; border-radius: 8px;
@@ -51,7 +50,7 @@
     }
     .time-select:hover { color: #0078d7; }
 
-    .header-right { display: flex; gap: 10px; align-items: center; }
+    .header-controls { display: flex; gap: 10px; align-items: center; }
 
     /* --- MAP --- */
     #map-wrapper { padding: 0; flex-grow: 1; position: relative; min-height: 0; }
@@ -63,8 +62,12 @@
         background: #f0f2f5; border: none; padding: 0; border-radius: 50%; cursor: pointer;
         border: 1px solid #ddd; font-size: 18px; height: 38px; width: 38px;
         display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s;
     }
     .gps-btn:hover { background: #eef; color: #0078d7; }
+    
+    /* Heatmap Active State */
+    .gps-btn.active { background: #ffeb3b; border-color: #fbc02d; color: #e65100; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
 
     .search-box {
         background: #f0f2f5; padding: 5px 15px; border-radius: 30px; 
@@ -134,15 +137,12 @@
     .result-top-half { height: 60%; width: 100%; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; position: relative; }
     .result-bottom-half { height: 40%; width: 100%; display: flex; border-top: 1px solid #eee; padding-top: 5px; box-sizing: border-box; gap: 10px; margin-top: auto; }
 
-    /* TAGS */
     .info-left-tags { flex: 1; display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-content: center; gap: 5px; border-right: 1px solid #eee; padding-right: 10px; overflow-y: auto; }
     .tag { background: #f0f2f5; color: #555; font-size: 0.8em; padding: 4px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap; text-transform: capitalize; }
-    
     .info-right-dist { flex: 1; display: flex; padding-left: 10px; align-items: center; }
     .dist-subitem { flex: 1; text-align: center; }
 
     #weather-select { border: 1px solid #ddd; border-radius: 6px; padding: 5px; font-family: inherit; color: #333; font-weight: bold; cursor: pointer; width: 100%; text-align: center; margin-top: 5px; box-sizing: border-box; height: 35px; }
-    
     .events-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; }
     .events-btn-row { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 5px; }
     .evt-btn { border: 1px solid #ddd; border-radius: 6px; background: #f9f9f9; font-weight: bold; color: #333; cursor: pointer; height: 35px; width: 35px; display: flex; align-items: center; justify-content: center; }
@@ -200,6 +200,7 @@
             <span class="search-icon">🔍</span>
             <ul id="search-results"></ul>
         </div>
+        <button class="gps-btn" onclick="toggleHeatmap()" title="Toggle Crowd Heatmap" id="heatmap-btn">🔥</button>
         <button class="gps-btn" onclick="triggerGPS()" title="Recenter on Me">📍</button>
     </div>
 </header>
@@ -211,7 +212,6 @@
 </div>
 
 <div class="dashboard-container">
-    
     <div class="card-unified">
         <div id="unified-empty-state">
             <span id="gps-status" style="font-size:0.9em; display:block; margin-bottom:10px;">Locating you...</span>
@@ -219,7 +219,6 @@
         </div>
 
         <div id="unified-active-state">
-            
             <div class="unified-section section-info">
                 <div class="result-top-half">
                     <div class="close-btn" onclick="clearSelection()" title="Clear Selection">&times;</div>
@@ -283,11 +282,11 @@
             <span id="crowd-status" style="font-weight:bold; font-size:1.1em; margin-top:5px; color:#999; min-height:20px;"></span>
         </div>
     </div>
-
 </div>
 
 <script>
 const CSV_URL = "places_database.csv";
+const HEATMAP_JSON_URL = "heatmap_data.json";
 
 let map;
 let places = [];        
@@ -299,7 +298,12 @@ let fuse;
 let currentSelectedPlace = null; 
 let currentEventsValue = 0; 
 
-// ICONS
+// Heatmap Globals
+let heatLayer = null;
+let heatDataPoints = [];
+let isHeatmapActive = false;
+
+// Icons
 const greenIcon = L.divIcon({ className: 'dot-marker dot-green', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
 const redIcon = L.divIcon({ className: 'dot-marker dot-red', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
 const greyIcon = L.divIcon({ className: 'dot-marker dot-grey', iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
@@ -316,21 +320,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Set Default Time
     const now = new Date();
-    // JS Day 0=Sun -> Python 0=Mon
-    // JS: Sun=0, Mon=1, Tue=2...
-    // Py: Mon=0, Tue=1... Sun=6
     let defaultDay = now.getDay() === 0 ? 6 : now.getDay() - 1;
     document.getElementById("day-select").value = defaultDay;
     document.getElementById("hour-select").value = now.getHours();
 
     initMap();
     fetchCSV();
+    fetchHeatmapData(); // Load Heatmap Data
     triggerGPS();
     
-    // Listeners
+    // UI Event Listeners
     document.getElementById("weather-select").addEventListener("change", updateUI);
-    document.getElementById("day-select").addEventListener("change", updateUI);
-    document.getElementById("hour-select").addEventListener("change", updateUI);
+    document.getElementById("day-select").addEventListener("change", () => { updateUI(); updateHeatmapLayer(); });
+    document.getElementById("hour-select").addEventListener("change", () => { updateUI(); updateHeatmapLayer(); });
 });
 
 function updateUI() {
@@ -348,16 +350,78 @@ function updateWeatherIcon() {
 
 function initMap() {
     map = L.map("map").setView([41.3851, 2.1734], 13);
+    // Dark/Light toggle or neutral map often works best for heatmaps
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; CARTO', maxZoom: 20
     }).addTo(map);
 
-    placesLayer.addTo(map);
-    selectionLayer.addTo(map);
+    // Order matters for layering
+    selectionLayer.addTo(map); // Selection line under
+    placesLayer.addTo(map);    // Dots on top
     gpsLayer.addTo(map);
 
     map.on('click', function(e) { handleLocationInput(e.latlng); });
 }
+
+// --- HEATMAP LOGIC ---
+function fetchHeatmapData() {
+    fetch(HEATMAP_JSON_URL)
+    .then(res => res.json())
+    .then(data => {
+        heatDataPoints = data;
+    })
+    .catch(err => console.log("Heatmap JSON missing (run python script):", err));
+}
+
+function toggleHeatmap() {
+    isHeatmapActive = !isHeatmapActive;
+    const btn = document.getElementById("heatmap-btn");
+    
+    if(isHeatmapActive) {
+        btn.classList.add("active");
+        updateHeatmapLayer();
+    } else {
+        btn.classList.remove("active");
+        if(heatLayer) {
+            map.removeLayer(heatLayer);
+            heatLayer = null;
+        }
+    }
+}
+
+function updateHeatmapLayer() {
+    if(!isHeatmapActive || !heatDataPoints || heatDataPoints.length === 0) return;
+
+    const day = parseInt(document.getElementById("day-select").value);
+    const hour = parseInt(document.getElementById("hour-select").value);
+
+    // Build Points: [Lat, Lon, Intensity]
+    const points = [];
+    heatDataPoints.forEach(place => {
+        if(place.schedule && place.schedule[day]) {
+            let intensity = place.schedule[day][hour];
+            if(intensity > 0) {
+                // Leaflet heat expects 0.0 - 1.0 roughly (though supports higher)
+                // Divider 90 helps visualize medium crowds too
+                points.push([place.lat, place.lon, intensity / 90]);
+            }
+        }
+    });
+
+    if(heatLayer) map.removeLayer(heatLayer);
+
+    heatLayer = L.heatLayer(points, {
+        radius: 40,
+        blur: 25,
+        maxZoom: 14,
+        max: 1.0,
+        gradient: {0.4: 'blue', 0.6: 'lime', 0.9: 'red'}
+    }).addTo(map);
+    
+    // Ensure dots stay on top of heat
+    placesLayer.bringToFront();
+}
+// ---------------------
 
 function triggerGPS() {
     if (!navigator.geolocation) {
@@ -387,9 +451,7 @@ function triggerGPS() {
 
 function fetchCSV() {
     Papa.parse(CSV_URL, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
+        download: true, header: true, skipEmptyLines: true,
         complete: function(results) {
             places = results.data.map(row => {
                 if(!row.name || !row.latitude || !row.longitude) return null;
@@ -404,9 +466,7 @@ function fetchCSV() {
 
             places.forEach(p => {
                 let hasData = false;
-                try {
-                    if (p.popular_times && p.popular_times.length > 20) hasData = true;
-                } catch (e) {}
+                try { if (p.popular_times.length > 20) hasData = true; } catch (e) {}
                 const iconToUse = hasData ? greenIcon : greyIcon;
                 const m = L.marker([p.lat, p.lon], { icon: iconToUse });
                 m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
@@ -547,8 +607,7 @@ function updateCrowdDisplay() {
         let schedule = JSON.parse(validJson);
         
         if (schedule.length > 0) {
-            // schedule structure from python: list of 7 days (index 0=Mon, 6=Sun)
-            // our selectedDayIdx matches this directly
+            // Get data for selected Day/Hour
             let dayData = schedule[selectedDayIdx];
             if(dayData && dayData.data) {
                 baseCrowd = dayData.data[selectedHour] || 0;
