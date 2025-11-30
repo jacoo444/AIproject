@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Barcelona Smart Guide - Weather Control</title>
+<title>Barcelona Smart Guide - Cluster Fix</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
 <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f0f2f5; }
@@ -161,7 +161,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
@@ -174,14 +174,13 @@ let gpsLayer = L.layerGroup();
 let markersCluster = L.markerClusterGroup(); 
 let userRealLocation = null; 
 let fuse; 
-let currentSelectedPlace = null; // Store current place to recalculate crowd on weather change
+let currentSelectedPlace = null; 
 
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
     fetchCSV();
     triggerGPS();
     
-    // Listen for weather changes
     document.getElementById("weather-select").addEventListener("change", function() {
         updateWeatherIcon();
         if(currentSelectedPlace) {
@@ -239,20 +238,25 @@ function fetchCSV() {
         places = lines.map(l => {
             const c = l.split(",");
             if (c.length < 5) return null; 
+            
+            // Create the marker object here
+            const m = L.marker([parseFloat(c[1]), parseFloat(c[2])]);
+            
+            // Attach event directly to marker logic
+            m.on('click', () => handleLocationInput(L.latLng(parseFloat(c[1]), parseFloat(c[2]))));
+            
+            // Add marker to cluster
+            markersCluster.addLayer(m);
+
             return {
                 name: c[0].trim(),
                 lat: parseFloat(c[1]),
                 lon: parseFloat(c[2]),
                 crowd: parseFloat(c[3]) || 0, 
-                events: parseFloat(c[4]) || 0
+                events: parseFloat(c[4]) || 0,
+                markerObj: m // STORE THE MARKER OBJECT REFERENCE
             };
         }).filter(x => x && !isNaN(x.lat));
-        
-        places.forEach(p => {
-            const m = L.marker([p.lat, p.lon]);
-            m.on('click', () => handleLocationInput(L.latLng(p.lat, p.lon)));
-            markersCluster.addLayer(m);
-        });
 
         fuse = new Fuse(places, { keys: ['name'], threshold: 0.4 });
     });
@@ -275,7 +279,7 @@ searchInput.addEventListener('keyup', function() {
                 searchInput.value = ""; 
                 resultsList.style.display = 'none';
                 const latlng = L.latLng(p.lat, p.lon);
-                map.setView(latlng, 18); 
+                // No need to setView here, handleLocationInput's zoomToShowLayer will handle it
                 handleLocationInput(latlng);       
             };
             resultsList.appendChild(li);
@@ -284,14 +288,10 @@ searchInput.addEventListener('keyup', function() {
 });
 
 function handleLocationInput(latlng) {
+    // 1. Reset
     selectionLayer.clearLayers(); 
 
-    const redIcon = L.icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-        iconSize: [25, 41], iconAnchor: [12, 41]
-    });
-    L.marker(latlng, {icon: redIcon}).addTo(selectionLayer);
-
+    // 2. Find Nearest
     let nearest = null;
     let minDistance = Infinity;
 
@@ -301,24 +301,37 @@ function handleLocationInput(latlng) {
     });
 
     if (nearest) {
-        // Update Global Selection
         currentSelectedPlace = nearest;
+        
+        // --- VITAL FIX: REVEAL CLUSTERED MARKER ---
+        // This function zooms or spirals to make the marker visible
+        markersCluster.zoomToShowLayer(nearest.markerObj, function() {
+            
+            // This code runs AFTER the marker is revealed
+            
+            // Draw User Selection Red Marker
+            const redIcon = L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+                iconSize: [25, 41], iconAnchor: [12, 41]
+            });
+            L.marker(latlng, {icon: redIcon}).addTo(selectionLayer);
 
-        // Visuals
-        if (minDistance > 5) {
-            let d = minDistance;
-            let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
-            
-            L.polyline([latlng, [nearest.lat, nearest.lon]], {
-                color: '#e74c3c', weight: 3, opacity: 0.7, dashArray: '10, 10'
-            }).addTo(selectionLayer);
-            
-            document.getElementById("distance-info").innerText = dString;
-            document.getElementById("distance-info").style.color = "black";
-        } else {
-            document.getElementById("distance-info").innerText = "0 m";
-            document.getElementById("distance-info").style.color = "green";
-        }
+            // Draw Line to the now-visible marker
+            if (minDistance > 5) {
+                let d = minDistance;
+                let dString = d > 1000 ? (d/1000).toFixed(1) + " km" : Math.round(d) + " m";
+                
+                L.polyline([latlng, [nearest.lat, nearest.lon]], {
+                    color: '#e74c3c', weight: 3, opacity: 0.7, dashArray: '10, 10'
+                }).addTo(selectionLayer);
+                
+                document.getElementById("distance-info").innerText = dString;
+                document.getElementById("distance-info").style.color = "black";
+            } else {
+                document.getElementById("distance-info").innerText = "0 m";
+                document.getElementById("distance-info").style.color = "green";
+            }
+        });
 
         // --- UPDATE INFO PANEL ---
         document.getElementById("instruction").style.display = "none";
@@ -336,7 +349,6 @@ function handleLocationInput(latlng) {
             document.getElementById("user-distance").innerText = "--";
         }
 
-        // Calculate Crowd (Refactored to separate function)
         updateCrowdDisplay(nearest);
     }
 }
